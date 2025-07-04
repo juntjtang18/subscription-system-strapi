@@ -11,7 +11,7 @@ set -o pipefail
 # --- Database Connection Details ---
 # Details from your original script.
 DB_USER="postgres"
-DB_NAME="langgo-en-dev1"
+DB_NAME="gpa-subsys-db1"
 DB_HOST="/cloudsql/lucid-arch-451211-b0:us-west1:cloud-sql-server"
 # WARNING: Hardcoding passwords is not secure. Consider using a .pgpass file.
 DB_PASSWORD="Passw0rd@P0stgres"
