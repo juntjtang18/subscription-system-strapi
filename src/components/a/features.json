@@ -2,13 +2,9 @@
   "collectionName": "components_a_features",
   "info": {
     "displayName": "features",
-    "icon": "check"
+    "icon": "check",
+    "description": ""
   },
   "options": {},
-  "attributes": {
-    "feature": {
-      "type": "string",
-      "required": true
-    }
-  }
+  "attributes": {}
 }

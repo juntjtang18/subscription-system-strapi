@@ -34,16 +34,6 @@
       "type": "string",
       "required": true
     },
-    "features": {
-      "type": "component",
-      "repeatable": true,
-      "pluginOptions": {
-        "i18n": {
-          "localized": true
-        }
-      },
-      "component": "a.features"
-    },
     "entitlements": {
       "type": "relation",
       "relation": "manyToMany",
@@ -86,6 +76,24 @@
         }
       },
       "type": "datetime"
+    },
+    "subscriptions": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::subscription.subscription",
+      "mappedBy": "plan"
+    },
+    "features": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::feature.feature",
+      "mappedBy": "plans"
+    },
+    "plan_ent_links": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::plan-ent-link.plan-ent-link",
+      "mappedBy": "plan"
     }
   }
 }

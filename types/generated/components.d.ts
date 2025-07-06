@@ -5,10 +5,9 @@ export interface AFeatures extends Schema.Component {
   info: {
     displayName: 'features';
     icon: 'check';
+    description: '';
   };
-  attributes: {
-    feature: Attribute.String & Attribute.Required;
-  };
+  attributes: {};
 }
 
 declare module '@strapi/types' {

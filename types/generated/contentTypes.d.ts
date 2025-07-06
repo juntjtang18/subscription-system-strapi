@@ -683,6 +683,7 @@ export interface ApiEntitlementEntitlement extends Schema.CollectionType {
     singularName: 'entitlement';
     pluralName: 'entitlements';
     displayName: 'entitlement';
+    description: '';
   };
   options: {
     draftAndPublish: false;
@@ -694,6 +695,32 @@ export interface ApiEntitlementEntitlement extends Schema.CollectionType {
       'api::entitlement.entitlement',
       'manyToMany',
       'api::plan.plan'
+    >;
+    usageledgers: Attribute.Relation<
+      'api::entitlement.entitlement',
+      'oneToMany',
+      'api::usageledger.usageledger'
+    >;
+    ismetered: Attribute.Boolean &
+      Attribute.Required &
+      Attribute.DefaultTo<false>;
+    defaultlimit: Attribute.Integer;
+    resetPeriod: Attribute.Enumeration<
+      [
+        'minute',
+        'hour',
+        'day',
+        'week',
+        'two weeks',
+        'month',
+        'year',
+        'lifetime'
+      ]
+    >;
+    plan_ent_links: Attribute.Relation<
+      'api::entitlement.entitlement',
+      'oneToMany',
+      'api::plan-ent-link.plan-ent-link'
     >;
     createdAt: Attribute.DateTime;
     updatedAt: Attribute.DateTime;
@@ -709,6 +736,65 @@ export interface ApiEntitlementEntitlement extends Schema.CollectionType {
       'admin::user'
     > &
       Attribute.Private;
+  };
+}
+
+export interface ApiFeatureFeature extends Schema.CollectionType {
+  collectionName: 'features';
+  info: {
+    singularName: 'feature';
+    pluralName: 'features';
+    displayName: 'feature';
+    description: '';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  pluginOptions: {
+    i18n: {
+      localized: true;
+    };
+  };
+  attributes: {
+    feature: Attribute.String &
+      Attribute.Required &
+      Attribute.SetPluginOptions<{
+        i18n: {
+          localized: true;
+        };
+      }>;
+    plans: Attribute.Relation<
+      'api::feature.feature',
+      'manyToMany',
+      'api::plan.plan'
+    >;
+    order: Attribute.Integer &
+      Attribute.Required &
+      Attribute.SetPluginOptions<{
+        i18n: {
+          localized: false;
+        };
+      }>;
+    createdAt: Attribute.DateTime;
+    updatedAt: Attribute.DateTime;
+    createdBy: Attribute.Relation<
+      'api::feature.feature',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    updatedBy: Attribute.Relation<
+      'api::feature.feature',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    localizations: Attribute.Relation<
+      'api::feature.feature',
+      'oneToMany',
+      'api::feature.feature'
+    >;
+    locale: Attribute.String;
   };
 }
 
@@ -741,12 +827,6 @@ export interface ApiPlanPlan extends Schema.CollectionType {
       Attribute.SetPluginOptions<{
         i18n: {
           localized: false;
-        };
-      }>;
-    features: Attribute.Component<'a.features', true> &
-      Attribute.SetPluginOptions<{
-        i18n: {
-          localized: true;
         };
       }>;
     entitlements: Attribute.Relation<
@@ -782,6 +862,21 @@ export interface ApiPlanPlan extends Schema.CollectionType {
           localized: false;
         };
       }>;
+    subscriptions: Attribute.Relation<
+      'api::plan.plan',
+      'oneToMany',
+      'api::subscription.subscription'
+    >;
+    features: Attribute.Relation<
+      'api::plan.plan',
+      'manyToMany',
+      'api::feature.feature'
+    >;
+    plan_ent_links: Attribute.Relation<
+      'api::plan.plan',
+      'oneToMany',
+      'api::plan-ent-link.plan-ent-link'
+    >;
     createdAt: Attribute.DateTime;
     updatedAt: Attribute.DateTime;
     createdBy: Attribute.Relation<'api::plan.plan', 'oneToOne', 'admin::user'> &
@@ -794,6 +889,123 @@ export interface ApiPlanPlan extends Schema.CollectionType {
       'api::plan.plan'
     >;
     locale: Attribute.String;
+  };
+}
+
+export interface ApiPlanEntLinkPlanEntLink extends Schema.CollectionType {
+  collectionName: 'plan_ent_links';
+  info: {
+    singularName: 'plan-ent-link';
+    pluralName: 'plan-ent-links';
+    displayName: 'PlanEntLink';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    plan: Attribute.Relation<
+      'api::plan-ent-link.plan-ent-link',
+      'manyToOne',
+      'api::plan.plan'
+    >;
+    entitlement: Attribute.Relation<
+      'api::plan-ent-link.plan-ent-link',
+      'manyToOne',
+      'api::entitlement.entitlement'
+    >;
+    limitOverride: Attribute.Integer;
+    createdAt: Attribute.DateTime;
+    updatedAt: Attribute.DateTime;
+    createdBy: Attribute.Relation<
+      'api::plan-ent-link.plan-ent-link',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    updatedBy: Attribute.Relation<
+      'api::plan-ent-link.plan-ent-link',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+  };
+}
+
+export interface ApiSubscriptionSubscription extends Schema.CollectionType {
+  collectionName: 'subscriptions';
+  info: {
+    singularName: 'subscription';
+    pluralName: 'subscriptions';
+    displayName: 'subscription';
+    description: '';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    strapiUserId: Attribute.Integer & Attribute.Required;
+    plan: Attribute.Relation<
+      'api::subscription.subscription',
+      'manyToOne',
+      'api::plan.plan'
+    >;
+    status: Attribute.Enumeration<['active', 'canceled', 'expired']> &
+      Attribute.Required &
+      Attribute.DefaultTo<'active'>;
+    expireDate: Attribute.DateTime;
+    originalTransactionId: Attribute.String;
+    latestTransactionId: Attribute.String;
+    startDate: Attribute.DateTime;
+    createdAt: Attribute.DateTime;
+    updatedAt: Attribute.DateTime;
+    createdBy: Attribute.Relation<
+      'api::subscription.subscription',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    updatedBy: Attribute.Relation<
+      'api::subscription.subscription',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+  };
+}
+
+export interface ApiUsageledgerUsageledger extends Schema.CollectionType {
+  collectionName: 'usageledgers';
+  info: {
+    singularName: 'usageledger';
+    pluralName: 'usageledgers';
+    displayName: 'usageledger';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    strapiUserId: Attribute.Integer & Attribute.Required;
+    entitlement: Attribute.Relation<
+      'api::usageledger.usageledger',
+      'manyToOne',
+      'api::entitlement.entitlement'
+    >;
+    consumedAt: Attribute.DateTime;
+    amount: Attribute.Integer & Attribute.Required & Attribute.DefaultTo<1>;
+    createdAt: Attribute.DateTime;
+    updatedAt: Attribute.DateTime;
+    createdBy: Attribute.Relation<
+      'api::usageledger.usageledger',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    updatedBy: Attribute.Relation<
+      'api::usageledger.usageledger',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
   };
 }
 
@@ -814,7 +1026,11 @@ declare module '@strapi/types' {
       'plugin::users-permissions.user': PluginUsersPermissionsUser;
       'plugin::i18n.locale': PluginI18NLocale;
       'api::entitlement.entitlement': ApiEntitlementEntitlement;
+      'api::feature.feature': ApiFeatureFeature;
       'api::plan.plan': ApiPlanPlan;
+      'api::plan-ent-link.plan-ent-link': ApiPlanEntLinkPlanEntLink;
+      'api::subscription.subscription': ApiSubscriptionSubscription;
+      'api::usageledger.usageledger': ApiUsageledgerUsageledger;
     }
   }
 }

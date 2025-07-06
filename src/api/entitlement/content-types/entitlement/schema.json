@@ -4,7 +4,8 @@
   "info": {
     "singularName": "entitlement",
     "pluralName": "entitlements",
-    "displayName": "entitlement"
+    "displayName": "entitlement",
+    "description": ""
   },
   "options": {
     "draftAndPublish": false
@@ -24,6 +25,39 @@
       "relation": "manyToMany",
       "target": "api::plan.plan",
       "mappedBy": "entitlements"
+    },
+    "usageledgers": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::usageledger.usageledger",
+      "mappedBy": "entitlement"
+    },
+    "ismetered": {
+      "type": "boolean",
+      "default": false,
+      "required": true
+    },
+    "defaultlimit": {
+      "type": "integer"
+    },
+    "resetPeriod": {
+      "type": "enumeration",
+      "enum": [
+        "minute",
+        "hour",
+        "day",
+        "week",
+        "two weeks",
+        "month",
+        "year",
+        "lifetime"
+      ]
+    },
+    "plan_ent_links": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::plan-ent-link.plan-ent-link",
+      "mappedBy": "entitlement"
     }
   }
 }

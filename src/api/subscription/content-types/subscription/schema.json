@@ -1,0 +1,48 @@
+{
+  "kind": "collectionType",
+  "collectionName": "subscriptions",
+  "info": {
+    "singularName": "subscription",
+    "pluralName": "subscriptions",
+    "displayName": "subscription",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "strapiUserId": {
+      "type": "integer",
+      "required": true
+    },
+    "plan": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::plan.plan",
+      "inversedBy": "subscriptions"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "active",
+        "canceled",
+        "expired"
+      ],
+      "required": true,
+      "default": "active"
+    },
+    "expireDate": {
+      "type": "datetime"
+    },
+    "originalTransactionId": {
+      "type": "string"
+    },
+    "latestTransactionId": {
+      "type": "string"
+    },
+    "startDate": {
+      "type": "datetime"
+    }
+  }
+}

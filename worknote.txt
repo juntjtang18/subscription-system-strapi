@@ -1,0 +1,36 @@
+curl --location --request POST 'http://localhost:1337/api/subscriptions/subscribe-free-plan' \
+--header 'Authorization: Bearer d7d7685c328797b216734242a850b49b57ad48f55b94d8c374f63a01921624919973d0833d9a9ea9ea0d85f19cf63b3f54267f99d764c4e32d39414fef876ca2c788542d6d9a385d241dcf044b5d36ac5a4929e9f2099464fc5eb6f36dfa92050f1e5d9fa9ad3a5b5a6b076ceaeb4e5c697dc739c47a6e247c2bed3295f6d76d' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "userId": 456
+}'
+
+Token: d7d7685c328797b216734242a850b49b57ad48f55b94d8c374f63a01921624919973d0833d9a9ea9ea0d85f19cf63b3f54267f99d764c4e32d39414fef876ca2c788542d6d9a385d241dcf044b5d36ac5a4929e9f2099464fc5eb6f36dfa92050f1e5d9fa9ad3a5b5a6b076ceaeb4e5c697dc739c47a6e247c2bed3295f6d76d
+
+
+curl --location --request POST 'http://localhost:1337/api/subscriptions/subscribe-to-plan' \
+--header 'Authorization: Bearer d7d7685c328797b216734242a850b49b57ad48f55b94d8c374f63a01921624919973d0833d9a9ea9ea0d85f19cf63b3f54267f99d764c4e32d39414fef876ca2c788542d6d9a385d241dcf044b5d36ac5a4929e9f2099464fc5eb6f36dfa92050f1e5d9fa9ad3a5b5a6b076ceaeb4e5c697dc739c47a6e247c2bed3295f6d76d' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "userId": 456,
+    "planId": 2
+}'
+
+
+
+curl --location --request POST 'http://localhost:1337/api/subscriptions/subscribe-free-plan' \
+  --header 'Content-Type: application/json' \
+  --header 'Authorization: Bearer d7d7685c328797b216734242a850b49b57ad48f55b94d8c374f63a01921624919973d0833d9a9ea9ea0d85f19cf63b3f54267f99d764c4e32d39414fef876ca2c788542d6d9a385d241dcf044b5d36ac5a4929e9f2099464fc5eb6f36dfa92050f1e5d9fa9ad3a5b5a6b076ceaeb4e5c697dc739c47a6e247c2bed3295f6d76d' \
+--data-raw '{
+  "userId": 36
+}'
+
+
+curl -X POST \
+-H "Content-Type: application/json" \
+-d '{
+  "username": "produser_july4",
+  "email": "prod_july4@example.com",
+  "password": "SecurePassword123!"
+}' \
+-v https://strapi.geniusparentingai.ca/api/auth/local/register

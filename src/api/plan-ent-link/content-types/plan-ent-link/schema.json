@@ -1,0 +1,30 @@
+{
+  "kind": "collectionType",
+  "collectionName": "plan_ent_links",
+  "info": {
+    "singularName": "plan-ent-link",
+    "pluralName": "plan-ent-links",
+    "displayName": "PlanEntLink"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "plan": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::plan.plan",
+      "inversedBy": "plan_ent_links"
+    },
+    "entitlement": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::entitlement.entitlement",
+      "inversedBy": "plan_ent_links"
+    },
+    "limitOverride": {
+      "type": "integer"
+    }
+  }
+}

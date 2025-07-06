@@ -1,0 +1,33 @@
+{
+  "kind": "collectionType",
+  "collectionName": "usageledgers",
+  "info": {
+    "singularName": "usageledger",
+    "pluralName": "usageledgers",
+    "displayName": "usageledger"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "strapiUserId": {
+      "type": "integer",
+      "required": true
+    },
+    "entitlement": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::entitlement.entitlement",
+      "inversedBy": "usageledgers"
+    },
+    "consumedAt": {
+      "type": "datetime"
+    },
+    "amount": {
+      "type": "integer",
+      "default": 1,
+      "required": true
+    }
+  }
+}
