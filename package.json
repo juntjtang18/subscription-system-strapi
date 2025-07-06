@@ -7,14 +7,31 @@
     "develop": "strapi develop",
     "start": "strapi start",
     "build": "strapi build",
-    "strapi": "strapi"
+    "strapi": "strapi",
+    "dev:gpa":    "env-cmd -f .env.gpa strapi develop",
+    "dev:langgo": "env-cmd -f .env.langgo strapi develop",
+  
+    "backup:gpa":    "env-cmd -f .env.gpa -- sh -c 'pg_dump -h \"$DATABASE_HOST\" -U \"$DATABASE_USERNAME\" \"$DATABASE_NAME\" > database/backup/gpa_subsys_full.sql'",
+    "backup:langgo": "env-cmd -f .env.langgo -- sh -c 'pg_dump -h \"$DATABASE_HOST\" -U \"$DATABASE_USERNAME\" \"$DATABASE_NAME\" > database/backup/langgo_full.sql'",
+  
+    "restore:gpa":    "env-cmd -f .env.gpa -- sh -c 'psql -h \"$DATABASE_HOST\" -U \"$DATABASE_USERNAME\" \"$DATABASE_NAME\" < database/backup/gpa_subsys_full.sql'",
+    "restore:langgo": "env-cmd -f .env.langgo -- sh -c 'psql -h \"$DATABASE_HOST\" -U \"$DATABASE_USERNAME\" \"$DATABASE_NAME\" < database/backup/langgo_full.sql'",
+  
+    "schema:dump:gpa":    "env-cmd -f .env.gpa -- sh -c 'pg_dump --schema-only -h \"$DATABASE_HOST\" -U \"$DATABASE_USERNAME\" \"$DATABASE_NAME\" > database/backup/gpa_schema.sql'",
+    "schema:dump:langgo": "env-cmd -f .env.langgo -- sh -c 'pg_dump --schema-only -h \"$DATABASE_HOST\" -U \"$DATABASE_USERNAME\" \"$DATABASE_NAME\" > database/backup/langgo_schema.sql'",
+  
+    "schema:apply:langgo": "env-cmd -f .env.langgo -- sh -c 'psql -h \"$DATABASE_HOST\" -U \"$DATABASE_USERNAME\" \"$DATABASE_NAME\" < database/backup/gpa_schema.sql'",
+    "schema:apply:gpa":    "env-cmd -f .env.gpa -- sh -c 'psql -h \"$DATABASE_HOST\" -U \"$DATABASE_USERNAME\" \"$DATABASE_NAME\" < database/backup/langgo_schema.sql'"
+
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "env-cmd": "^10.1.0"
+  },
   "dependencies": {
-    "@strapi/strapi": "4.15.5",
-    "@strapi/plugin-users-permissions": "4.15.5",
-    "@strapi/plugin-i18n": "4.15.5",
     "@strapi/plugin-cloud": "4.15.5",
+    "@strapi/plugin-i18n": "4.15.5",
+    "@strapi/plugin-users-permissions": "4.15.5",
+    "@strapi/strapi": "4.15.5",
     "pg": "8.8.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
