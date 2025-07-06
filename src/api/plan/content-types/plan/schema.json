@@ -34,12 +34,6 @@
       "type": "string",
       "required": true
     },
-    "entitlements": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::entitlement.entitlement",
-      "inversedBy": "plans"
-    },
     "inherit_from": {
       "type": "relation",
       "relation": "manyToOne",

@@ -691,11 +691,6 @@ export interface ApiEntitlementEntitlement extends Schema.CollectionType {
   attributes: {
     name: Attribute.String & Attribute.Required;
     slug: Attribute.UID<'api::entitlement.entitlement', 'name'>;
-    plans: Attribute.Relation<
-      'api::entitlement.entitlement',
-      'manyToMany',
-      'api::plan.plan'
-    >;
     usageledgers: Attribute.Relation<
       'api::entitlement.entitlement',
       'oneToMany',
@@ -829,11 +824,6 @@ export interface ApiPlanPlan extends Schema.CollectionType {
           localized: false;
         };
       }>;
-    entitlements: Attribute.Relation<
-      'api::plan.plan',
-      'manyToMany',
-      'api::entitlement.entitlement'
-    >;
     inherit_from: Attribute.Relation<
       'api::plan.plan',
       'manyToOne',

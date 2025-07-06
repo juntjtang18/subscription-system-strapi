@@ -20,12 +20,6 @@
       "type": "uid",
       "targetField": "name"
     },
-    "plans": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::plan.plan",
-      "mappedBy": "entitlements"
-    },
     "usageledgers": {
       "type": "relation",
       "relation": "oneToMany",
