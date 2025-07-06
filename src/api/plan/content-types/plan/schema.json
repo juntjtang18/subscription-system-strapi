@@ -88,6 +88,15 @@
       "relation": "oneToMany",
       "target": "api::plan-ent-link.plan-ent-link",
       "mappedBy": "plan"
+    },
+    "order": {
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      },
+      "type": "integer",
+      "required": true
     }
   }
 }

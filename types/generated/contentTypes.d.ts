@@ -867,6 +867,13 @@ export interface ApiPlanPlan extends Schema.CollectionType {
       'oneToMany',
       'api::plan-ent-link.plan-ent-link'
     >;
+    order: Attribute.Integer &
+      Attribute.Required &
+      Attribute.SetPluginOptions<{
+        i18n: {
+          localized: false;
+        };
+      }>;
     createdAt: Attribute.DateTime;
     updatedAt: Attribute.DateTime;
     createdBy: Attribute.Relation<'api::plan.plan', 'oneToOne', 'admin::user'> &
