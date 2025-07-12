@@ -11,5 +11,15 @@ module.exports = {
         middlewares: [],
       },
     },
+    // --- ADD THIS NEW ROUTE OBJECT ---
+    {
+      method: 'GET',
+      path: '/v1/plans/:id', // The new endpoint for a single plan
+      handler: 'plan.findOneWithDetails',
+      config: {
+        policies: [],
+        middlewares: [],
+      },
+    },
   ],
 };

@@ -1,21 +1,19 @@
+// ./src/api/plan/controllers/plan.js
+
 'use strict';
 
 const { createCoreController } = require('@strapi/strapi').factories;
 
-// ... (The getInheritedAttributes helper function remains the same)
+// This helper function does not need changes. It correctly gathers the data.
 const getInheritedAttributes = (plan, plansMap, cache) => {
-  // If we have already calculated this plan's inheritance, return the cached result.
   if (cache.has(plan.id)) {
     return cache.get(plan.id);
   }
 
-  // Maps to hold the final merged attributes.
   let finalFeatures = new Map();
   let finalEntitlements = new Map();
 
-  // --- Recursive Step ---
-  // If this plan has a parent, first get the parent's fully resolved attributes.
-  if (plan.inherit_from && plan.inherit_from.id) {
+  if (plan.inherit_from?.id) {
     const parentPlan = plansMap.get(plan.inherit_from.id);
     if (parentPlan) {
       const parentAttributes = getInheritedAttributes(parentPlan, plansMap, cache);
@@ -24,8 +22,6 @@ const getInheritedAttributes = (plan, plansMap, cache) => {
     }
   }
 
-  // --- Merge Step ---
-  // Now, merge this plan's own attributes. They will override any from the parent.
   plan.features.forEach(feature => {
     finalFeatures.set(feature.id, feature);
   });
@@ -33,6 +29,7 @@ const getInheritedAttributes = (plan, plansMap, cache) => {
   plan.plan_ent_links.forEach(link => {
     if (link.entitlement) {
       finalEntitlements.set(link.entitlement.slug, {
+        id: link.entitlement.id,
         name: link.entitlement.name,
         slug: link.entitlement.slug,
         isMetered: link.entitlement.ismetered,
@@ -41,12 +38,9 @@ const getInheritedAttributes = (plan, plansMap, cache) => {
       });
     }
   });
-  
+
   const result = { features: finalFeatures, entitlements: finalEntitlements };
-  
-  // Cache the result for this plan ID before returning.
   cache.set(plan.id, result);
-  
   return result;
 };
 
@@ -54,61 +48,147 @@ const getInheritedAttributes = (plan, plansMap, cache) => {
 module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
   async findAllWithDetails(ctx) {
     try {
-      // 1. Fetch ALL plans, now sorted by the 'order' field.
       const allPlans = await strapi.entityService.findMany('api::plan.plan', {
-        // 👇 ADD THIS LINE TO SORT THE PLANS
-        sort: { order: 'asc' }, 
+        sort: { order: 'asc' },
         populate: {
           features: true,
-          plan_ent_links: {
-            populate: {
-              entitlement: true,
-            },
-          },
+          plan_ent_links: { populate: { entitlement: true } },
           inherit_from: true,
         },
       });
 
-      // 2. Create a Map for efficient lookups
       const plansMap = new Map(allPlans.map(p => [p.id, p]));
-      
-      // 3. Create a cache for memoization
       const inheritanceCache = new Map();
 
-      // 4. Process each plan. The final array will maintain the sorted order.
       const formattedPlans = allPlans.map(plan => {
         const { features, entitlements } = getInheritedAttributes(plan, plansMap, inheritanceCache);
 
-        const finalFeaturesList = Array.from(features.values())
-          .map(feature => ({
-            name: feature.feature,
-            order: feature.order,
-          }))
-          .sort((a, b) => a.order - b.order);
-
+        // Create clean, flat lists of the raw data.
+        const finalFeaturesList = Array.from(features.values()).sort((a, b) => a.order - b.order);
         const finalEntitlementsList = Array.from(entitlements.values());
-        
+
+        // ** THE FIX IS HERE: Manually build the entire desired structure **
         return {
           id: plan.id,
-          name: plan.name,
-          productId: plan.productId,
-          order: plan.order, // You might want to include the order in the response
-          sale: {
-            productId: plan.saleProductId,
-            startDate: plan.saleStartDate,
-            endDate: plan.saleEndDate,
+          attributes: {
+            name: plan.name,
+            productId: plan.productId,
+            order: plan.order,
+            sale: {
+              productId: plan.saleProductId,
+              startDate: plan.saleStartDate,
+              endDate: plan.saleEndDate,
+            },
+            // Manually structure the 'features' relation
+            features: {
+              data: finalFeaturesList.map(feature => ({
+                id: feature.id,
+                attributes: {
+                  name: feature.feature,
+                  order: feature.order,
+                },
+              })),
+            },
+            // Manually structure the 'entitlements' relation
+            entitlements: {
+              data: finalEntitlementsList.map(ent => ({
+                id: ent.id,
+                attributes: {
+                  name: ent.name,
+                  slug: ent.slug,
+                  isMetered: ent.isMetered,
+                  limit: ent.limit,
+                  resetPeriod: ent.resetPeriod,
+                },
+              })),
+            },
           },
-          features: finalFeaturesList,
-          entitlements: finalEntitlementsList,
         };
       });
-
-      // 5. Return the sanitized and formatted response
-      return this.transformResponse(formattedPlans);
+      
+      // We no longer use this.transformResponse. We return the manually built object.
+      return { data: formattedPlans, meta: {} };
 
     } catch (err) {
-      strapi.log.error('Error in recursive plan controller:', err);
+      strapi.log.error('Error in findAllWithDetails plan controller:', err);
       ctx.internalServerError('An error occurred while fetching plans.');
+    }
+  },
+
+  async findOneWithDetails(ctx) {
+    try {
+      const { id } = ctx.params;
+      const plansMap = new Map();
+      let currentPlanId = parseInt(id, 10);
+
+      while (currentPlanId && !plansMap.has(currentPlanId)) {
+        const plan = await strapi.entityService.findOne('api::plan.plan', currentPlanId, {
+          populate: {
+            features: true,
+            plan_ent_links: { populate: { entitlement: true } },
+            inherit_from: true,
+          },
+        });
+        if (!plan) {
+          if (currentPlanId === parseInt(id, 10)) return ctx.notFound('Plan not found.');
+          strapi.log.warn(`Broken inheritance chain: Plan ID ${currentPlanId} not found.`);
+          break;
+        }
+        plansMap.set(plan.id, plan);
+        currentPlanId = plan.inherit_from ? plan.inherit_from.id : null;
+      }
+
+      const targetPlan = plansMap.get(parseInt(id, 10));
+      if (!targetPlan) return ctx.notFound('Plan not found.');
+
+      const inheritanceCache = new Map();
+      const { features, entitlements } = getInheritedAttributes(targetPlan, plansMap, inheritanceCache);
+      
+      const finalFeaturesList = Array.from(features.values()).sort((a, b) => a.order - b.order);
+      const finalEntitlementsList = Array.from(entitlements.values());
+
+      // ** THE FIX IS HERE: Manually build the entire desired structure **
+      const formattedPlan = {
+        id: targetPlan.id,
+        attributes: {
+          name: targetPlan.name,
+          productId: targetPlan.productId,
+          order: targetPlan.order,
+          sale: {
+            productId: targetPlan.saleProductId,
+            startDate: targetPlan.saleStartDate,
+            endDate: targetPlan.saleEndDate,
+          },
+          features: {
+            data: finalFeaturesList.map(feature => ({
+              id: feature.id,
+              attributes: {
+                name: feature.feature,
+                order: feature.order,
+              },
+            })),
+          },
+          entitlements: {
+            data: finalEntitlementsList.map(ent => ({
+              id: ent.id,
+              attributes: {
+                name: ent.name,
+                slug: ent.slug,
+                isMetered: ent.isMetered,
+                limit: ent.limit,
+                resetPeriod: ent.resetPeriod,
+              },
+            })),
+          },
+        },
+      };
+
+      // We no longer use this.transformResponse. We return the manually built object.
+      return { data: formattedPlan, meta: {} };
+
+    } catch (err) {
+      strapi.log.error('Error in findOneWithDetails plan controller:', err);
+      ctx.internalServerError('An error occurred while fetching the plan.');
     }
   },
 }));
