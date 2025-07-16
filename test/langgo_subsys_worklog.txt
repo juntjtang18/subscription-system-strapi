@@ -1,0 +1,14 @@
+curl -X POST "http://127.0.0.1:2338/api/v1/subscriptions/subscribe-free-plan" -H "Content-Type: application/json" \
+-H "Authorization: Bearer 9634d2e473ed467e9f1568533afb54be2f1ad60cb4054e95b84801b89e5f3168fe6bcdddf6ca254264fb0513422bf25accf0e38dd69a7167510ba4a1d11d39b7c66facacdfa9955dc699a1c0b1e9e298856c686e9b9579fbb1f1acb8cb7ce85d1aadfcee6b32017454ddbab3cb6cceef47d3c29f4bb50d690de56b3efd3309c7" \
+-d '{"userId": 999}' | jq .
+
+
+curl --location --request POST 'http://localhost:2338/api/v1/subscriptions/subscribe-to-plan' \
+--header 'Authorization: Bearer 9634d2e473ed467e9f1568533afb54be2f1ad60cb4054e95b84801b89e5f3168fe6bcdddf6ca254264fb0513422bf25accf0e38dd69a7167510ba4a1d11d39b7c66facacdfa9955dc699a1c0b1e9e298856c686e9b9579fbb1f1acb8cb7ce85d1aadfcee6b32017454ddbab3cb6cceef47d3c29f4bb50d690de56b3efd3309c7' \
+--header 'Content-Type: application/json' \
+--data-raw '{    "userId": 456,    "planId": 2 }' | jq .
+
+curl -X GET "http://127.0.0.1:2338/api/v1/all-plans" \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer 9634d2e473ed467e9f1568533afb54be2f1ad60cb4054e95b84801b89e5f3168fe6bcdddf6ca254264fb0513422bf25accf0e38dd69a7167510ba4a1d11d39b7c66facacdfa9955dc699a1c0b1e9e298856c686e9b9579fbb1f1acb8cb7ce85d1aadfcee6b32017454ddbab3cb6cceef47d3c29f4bb50d690de56b3efd3309c7" \
+ | jq .
