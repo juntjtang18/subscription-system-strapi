@@ -793,6 +793,27 @@ export interface ApiFeatureFeature extends Schema.CollectionType {
   };
 }
 
+export interface ApiPingPing extends Schema.CollectionType {
+  collectionName: 'pings';
+  info: {
+    singularName: 'ping';
+    pluralName: 'pings';
+    displayName: 'ping';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    status: Attribute.String & Attribute.Required & Attribute.DefaultTo<'OK'>;
+    createdAt: Attribute.DateTime;
+    updatedAt: Attribute.DateTime;
+    createdBy: Attribute.Relation<'api::ping.ping', 'oneToOne', 'admin::user'> &
+      Attribute.Private;
+    updatedBy: Attribute.Relation<'api::ping.ping', 'oneToOne', 'admin::user'> &
+      Attribute.Private;
+  };
+}
+
 export interface ApiPlanPlan extends Schema.CollectionType {
   collectionName: 'plans';
   info: {
@@ -1024,6 +1045,7 @@ declare module '@strapi/types' {
       'plugin::users-permissions.user': PluginUsersPermissionsUser;
       'api::entitlement.entitlement': ApiEntitlementEntitlement;
       'api::feature.feature': ApiFeatureFeature;
+      'api::ping.ping': ApiPingPing;
       'api::plan.plan': ApiPlanPlan;
       'api::plan-ent-link.plan-ent-link': ApiPlanEntLinkPlanEntLink;
       'api::subscription.subscription': ApiSubscriptionSubscription;
