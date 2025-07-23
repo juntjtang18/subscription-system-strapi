@@ -54,6 +54,8 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
           features: true,
           plan_ent_links: { populate: { entitlement: true } },
           inherit_from: true,
+          // --- CHANGE 1: Populate the child plans relation ---
+          childPlans: true,
         },
       });
 
@@ -63,11 +65,9 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
       const formattedPlans = allPlans.map(plan => {
         const { features, entitlements } = getInheritedAttributes(plan, plansMap, inheritanceCache);
 
-        // Create clean, flat lists of the raw data.
         const finalFeaturesList = Array.from(features.values()).sort((a, b) => a.order - b.order);
         const finalEntitlementsList = Array.from(entitlements.values());
 
-        // ** THE FIX IS HERE: Manually build the entire desired structure **
         return {
           id: plan.id,
           attributes: {
@@ -79,7 +79,6 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
               startDate: plan.saleStartDate,
               endDate: plan.saleEndDate,
             },
-            // Manually structure the 'features' relation
             features: {
               data: finalFeaturesList.map(feature => ({
                 id: feature.id,
@@ -89,7 +88,6 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
                 },
               })),
             },
-            // Manually structure the 'entitlements' relation
             entitlements: {
               data: finalEntitlementsList.map(ent => ({
                 id: ent.id,
@@ -102,11 +100,29 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
                 },
               })),
             },
+            // --- CHANGE 2: Add inheritance data to the response ---
+            inherit_from: plan.inherit_from ? {
+              data: {
+                id: plan.inherit_from.id,
+                attributes: {
+                  name: plan.inherit_from.name,
+                  productId: plan.inherit_from.productId,
+                }
+              }
+            } : null,
+            childPlans: {
+              data: (plan.childPlans || []).map(child => ({
+                id: child.id,
+                attributes: {
+                  name: child.name,
+                  productId: child.productId,
+                }
+              }))
+            },
           },
         };
       });
       
-      // We no longer use this.transformResponse. We return the manually built object.
       return { data: formattedPlans, meta: {} };
 
     } catch (err) {
@@ -127,6 +143,8 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
             features: true,
             plan_ent_links: { populate: { entitlement: true } },
             inherit_from: true,
+            // --- CHANGE 3: Populate the child plans relation ---
+            childPlans: true,
           },
         });
         if (!plan) {
@@ -147,7 +165,6 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
       const finalFeaturesList = Array.from(features.values()).sort((a, b) => a.order - b.order);
       const finalEntitlementsList = Array.from(entitlements.values());
 
-      // ** THE FIX IS HERE: Manually build the entire desired structure **
       const formattedPlan = {
         id: targetPlan.id,
         attributes: {
@@ -180,10 +197,28 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
               },
             })),
           },
+          // --- CHANGE 4: Add inheritance data to the response ---
+          inherit_from: targetPlan.inherit_from ? {
+            data: {
+              id: targetPlan.inherit_from.id,
+              attributes: {
+                name: targetPlan.inherit_from.name,
+                productId: targetPlan.inherit_from.productId,
+              }
+            }
+          } : null,
+          childPlans: {
+            data: (targetPlan.childPlans || []).map(child => ({
+              id: child.id,
+              attributes: {
+                name: child.name,
+                productId: child.productId,
+              }
+            }))
+          },
         },
       };
 
-      // We no longer use this.transformResponse. We return the manually built object.
       return { data: formattedPlan, meta: {} };
 
     } catch (err) {
