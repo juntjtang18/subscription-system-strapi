@@ -54,7 +54,6 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
           features: true,
           plan_ent_links: { populate: { entitlement: true } },
           inherit_from: true,
-          // --- CHANGE 1: Populate the child plans relation ---
           childPlans: true,
         },
       });
@@ -74,6 +73,7 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
             name: plan.name,
             productId: plan.productId,
             order: plan.order,
+            role: plan.role, // <-- Added role here
             sale: {
               productId: plan.saleProductId,
               startDate: plan.saleStartDate,
@@ -100,7 +100,6 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
                 },
               })),
             },
-            // --- CHANGE 2: Add inheritance data to the response ---
             inherit_from: plan.inherit_from ? {
               data: {
                 id: plan.inherit_from.id,
@@ -143,7 +142,6 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
             features: true,
             plan_ent_links: { populate: { entitlement: true } },
             inherit_from: true,
-            // --- CHANGE 3: Populate the child plans relation ---
             childPlans: true,
           },
         });
@@ -162,7 +160,7 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
       const inheritanceCache = new Map();
       const { features, entitlements } = getInheritedAttributes(targetPlan, plansMap, inheritanceCache);
       
-      const finalFeaturesList = Array.from(features.values()).sort((a, b) => a.order - b.order);
+      const finalList = Array.from(features.values()).sort((a, b) => a.order - b.order);
       const finalEntitlementsList = Array.from(entitlements.values());
 
       const formattedPlan = {
@@ -171,13 +169,14 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
           name: targetPlan.name,
           productId: targetPlan.productId,
           order: targetPlan.order,
+          role: targetPlan.role,
           sale: {
             productId: targetPlan.saleProductId,
             startDate: targetPlan.saleStartDate,
             endDate: targetPlan.saleEndDate,
           },
           features: {
-            data: finalFeaturesList.map(feature => ({
+            data: finalList.map(feature => ({
               id: feature.id,
               attributes: {
                 name: feature.feature,
@@ -197,7 +196,6 @@ module.exports = createCoreController('api::plan.plan', ({ strapi }) => ({
               },
             })),
           },
-          // --- CHANGE 4: Add inheritance data to the response ---
           inherit_from: targetPlan.inherit_from ? {
             data: {
               id: targetPlan.inherit_from.id,
