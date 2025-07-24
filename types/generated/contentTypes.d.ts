@@ -895,6 +895,12 @@ export interface ApiPlanPlan extends Schema.CollectionType {
           localized: false;
         };
       }>;
+    role: Attribute.Enumeration<['free', 'basic', 'premium', 'pro']> &
+      Attribute.SetPluginOptions<{
+        i18n: {
+          localized: false;
+        };
+      }>;
     createdAt: Attribute.DateTime;
     updatedAt: Attribute.DateTime;
     createdBy: Attribute.Relation<'api::plan.plan', 'oneToOne', 'admin::user'> &

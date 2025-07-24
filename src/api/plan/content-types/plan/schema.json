@@ -97,6 +97,20 @@
       },
       "type": "integer",
       "required": true
+    },
+    "role": {
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      },
+      "type": "enumeration",
+      "enum": [
+        "free",
+        "basic",
+        "premium",
+        "pro"
+      ]
     }
   }
 }
