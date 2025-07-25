@@ -137,4 +137,26 @@ module.exports = createCoreController('api::subscription.subscription', ({ strap
       return ctx.internalServerError('An unexpected error occurred while fetching the subscription.');
     }
   },
+  async verifyApplePurchase(ctx) {
+    const { receipt } = ctx.request.body;
+
+    if (!receipt) {
+      return ctx.badRequest('Receipt is missing');
+    }
+
+    try {
+      const verificationResult = await strapi
+        .service('api::subscription.subscription')
+        .verifyApplePurchase(receipt);
+      
+      return { data: verificationResult, meta: {} };
+
+    } catch (error) {
+      if (error.name === 'ApplicationError') {
+        return ctx.badRequest(error.message);
+      }
+      console.error('Error in verifyApplePurchase:', error);
+      return ctx.internalServerError('An unexpected error occurred.');
+    }
+  },
 }));

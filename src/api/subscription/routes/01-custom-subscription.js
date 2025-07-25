@@ -29,5 +29,14 @@ module.exports = {
         middlewares: [],
       },
     },
+    {
+      method: 'POST',
+      path: '/v1/verify-apple-purchase',
+      handler: 'subscription.verifyApplePurchase',
+      config: {
+        policies: [],
+        middlewares: [],
+      },
+    },    
   ],
 };

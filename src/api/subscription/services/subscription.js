@@ -114,4 +114,36 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
 
     return newSubscription;
   },
+
+  /**
+   * Verifies an Apple App Store receipt.
+   * @param {string} receipt - The JWS representation of the receipt.
+   * @returns {Promise<object>} The verification result.
+   */
+  async verifyApplePurchase(receipt) {
+    // TODO: Implement communication with Apple's App Store Server API
+    // 1. Send the receipt to Apple's verification endpoint.
+    // 2. Handle the response from Apple.
+    // 3. If the receipt is valid, extract the productID and expiresDate.
+    // 4. Update the user's subscription in your database based on the verified details.
+
+    console.log('Verifying Apple purchase with receipt:', receipt);
+    
+    // This is a placeholder response.
+    // You should replace this with the actual data from Apple's API.
+    const appleVerificationResult = {
+      productId: 'com.yourapp.product1',
+      expiresDate: new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000), // e.g., 30 days from now
+      isValid: true,
+    };
+    
+    if(!appleVerificationResult.isValid) {
+      throw new ApplicationError("Invalid receipt");
+    }
+
+    // Here you can add logic to update the user's subscription
+    // based on the appleVerificationResult
+
+    return appleVerificationResult;
+  },
 }));
