@@ -1,80 +1,180 @@
-// ./src/api/subscription/services/subscription.js
-
 'use strict';
 
 const { ApplicationError } = require('@strapi/utils').errors;
 const { createCoreService } = require('@strapi/strapi').factories;
+const jwt = require('jsonwebtoken');
+const axios = require('axios');
+const { Buffer } = require('buffer');
+
+// Read the Apple environment setting. Default to 'sandbox' for safety.
+const APPLE_ENVIRONMENT = process.env.APPLE_ENVIRONMENT || 'sandbox';
+const APPLE_API_BASE_URL = APPLE_ENVIRONMENT === 'production'
+  ? 'https://api.storekit.itunes.apple.com'
+  : 'https://api.storekit-sandbox.itunes.apple.com';
+
+// Read the mock environment variable
+const APPLE_CONNECT_MOCK = process.env.APPLE_CONNECT_MOCK === 'true';
 
 module.exports = createCoreService('api::subscription.subscription', ({ strapi }) => ({
+
   /**
-   * Subscribes a user to the free plan. Deactivates any existing subscription
-   * and creates a new one for the free plan.
-   * @param {number} userId - The ID of the user.
-   * @returns {Promise<object>} The created subscription object.
+   * Generates a signed JWT to authenticate with the App Store Server API.
+   */
+  generateAppleApiToken() {
+    const privateKey = process.env.APPLE_PRIVATE_KEY;
+    const issuerId = process.env.APPLE_ISSUER_ID;
+    const keyId = process.env.APPLE_KEY_ID;
+    const bundleId = process.env.APPLE_BUNDLE_ID;
+
+    if (!privateKey || !issuerId || !keyId || !bundleId) {
+      console.error('Apple API credentials are not configured in environment variables.');
+      throw new ApplicationError('Server configuration error for Apple API.');
+    }
+
+    const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+    const payload = { iss: issuerId, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + (5 * 60), aud: 'appstoreconnect-v1', bid: bundleId };
+    const options = { algorithm: 'ES256', header: { alg: 'ES256', kid: keyId, typ: 'JWT' } };
+    return jwt.sign(payload, formattedPrivateKey, options);
+  },
+
+  /**
+   * Helper function to connect to the real Apple API.
+   * @param {string} transactionId - The transaction ID to verify.
+   * @returns {Promise<object>} The verified transaction data from Apple.
+   */
+  async getRealVerifiedTransaction(transactionId) {
+    const appleApiToken = this.generateAppleApiToken();
+    try {
+      const url = `${APPLE_API_BASE_URL}/inApps/v2/transactions/${transactionId}`;
+      const response = await axios.get(url, { headers: { 'Authorization': `Bearer ${appleApiToken}` } });
+      const signedTransactionInfo = response.data.signedTransactionInfo;
+      const payload = signedTransactionInfo.split('.')[1];
+      const decodedPayload = Buffer.from(payload, 'base64').toString('utf8');
+      return JSON.parse(decodedPayload);
+    } catch (error) {
+      console.error("Apple API Error:", error.response?.data || error.message);
+      throw new ApplicationError('Failed to verify purchase with Apple.');
+    }
+  },
+
+  /**
+   * Generates mock transaction data for local testing.
+   * @returns {object} A fake verified transaction object.
+   */
+  getMockVerifiedTransaction() {
+    console.log(` MOCKING APPLE API SUCCESS (Env: ${APPLE_ENVIRONMENT}, URL would be: ${APPLE_API_BASE_URL}) `);
+    return {
+      productId: 'ca.geniusparentingai.basic.yearlyplan', // IMPORTANT: Make sure this plan productId exists in your Strapi plans
+      expiresDate: new Date().getTime() + 30 * 24 * 60 * 60 * 1000,
+      originalTransactionId: 'mock-original-' + Date.now(), // Unique ID for each mock run
+      purchaseDate: new Date().getTime(),
+    };
+  },
+
+  /**
+   * Verifies an Apple App Store receipt, and creates or updates the user's subscription.
+   */
+  async verifyApplePurchase({ receipt, userId }) {
+    let decodedTransaction;
+    try {
+      const payload = receipt.split('.')[1];
+      decodedTransaction = JSON.parse(Buffer.from(payload, 'base64').toString('utf8'));
+    } catch (e) {
+      throw new ApplicationError('Invalid receipt format.');
+    }
+
+    if (decodedTransaction.appAccountToken !== userId) {
+      throw new ApplicationError('User ID does not match the purchase receipt.');
+    }
+    
+    const { transactionId } = decodedTransaction;
+    if (!transactionId) {
+      throw new ApplicationError('Could not find transactionId in receipt.');
+    }
+
+    // Use the environment variable to decide which function to call
+    const verifiedTransaction = APPLE_CONNECT_MOCK
+      ? this.getMockVerifiedTransaction()
+      : await this.getRealVerifiedTransaction(transactionId);
+    
+    // --- The rest of the function continues as before ---
+    const { productId, expiresDate, originalTransactionId, purchaseDate } = verifiedTransaction;
+    if (!productId || !expiresDate) {
+      throw new ApplicationError('Missing product or expiration info from Apple.');
+    }
+
+    const plans = await strapi.entityService.findMany('api::plan.plan', { filters: { productId } });
+    if (!plans || plans.length === 0) {
+      throw new ApplicationError(`Plan with Product ID '${productId}' not found in our system.`);
+    }
+    const plan = plans[0];
+
+    const existingSubscriptions = await strapi.entityService.findMany('api::subscription.subscription', { filters: { originalTransactionId } });
+    const existingSubscription = existingSubscriptions.length > 0 ? existingSubscriptions[0] : null;
+
+    const subscriptionData = { strapiUserId: userId, plan: plan.id, status: 'active', startDate: new Date(purchaseDate).toISOString(), expireDate: new Date(expiresDate).toISOString(), originalTransactionId, latestTransactionId: transactionId, publishedAt: new Date().toISOString() };
+    
+    if (existingSubscription) {
+      const otherSubscriptions = await strapi.entityService.findMany('api::subscription.subscription', { filters: { strapiUserId: userId, status: 'active', originalTransactionId: { $ne: originalTransactionId } } });
+      for (const sub of otherSubscriptions) {
+        await strapi.entityService.update('api::subscription.subscription', sub.id, { data: { status: 'canceled' } });
+      }
+      await strapi.entityService.update('api::subscription.subscription', existingSubscription.id, { data: subscriptionData });
+    } else {
+      await strapi.entityService.create('api::subscription.subscription', { data: subscriptionData });
+    }
+
+    // Service's job is done. The controller will handle the response.
+    return;
+  },
+
+  /**
+   * Subscribes a user to the free plan.
    */
   async subscribeFreePlan(userId) {
-    // Find the 'Free' plan
-    const freePlan = await strapi.db.query('api::plan.plan').findOne({
-      where: { name: 'Free Plan' },
+    const plans = await strapi.entityService.findMany('api::plan.plan', {
+      filters: { name: 'Free Plan' },
     });
-
-    if (!freePlan) {
-      throw new ApplicationError("Free plan not found. Please ensure a 'Free' plan exists.");
+    if (!plans || plans.length === 0) {
+      throw new ApplicationError("Free plan not found. Please ensure a 'Free Plan' exists.");
     }
+    const freePlan = plans[0];
 
-    // Deactivate any existing active subscription for this user
-    const existingSubscription = await strapi.db.query('api::subscription.subscription').findOne({
-      where: { strapiUserId: userId, status: 'active' },
+    const existingSubscriptions = await strapi.entityService.findMany('api::subscription.subscription', {
+      filters: { strapiUserId: userId, status: 'active' },
     });
-
-    if (existingSubscription) {
-      await strapi.entityService.update('api::subscription.subscription', existingSubscription.id, {
-        data: {
-          status: 'canceled', // Set old subscription to 'canceled'
-        },
+    for(const sub of existingSubscriptions) {
+      await strapi.entityService.update('api::subscription.subscription', sub.id, {
+        data: { status: 'canceled' },
       });
     }
-
-    // Create a new subscription for the Free plan
-    const newSubscription = await strapi.entityService.create('api::subscription.subscription', {
+    
+    return await strapi.entityService.create('api::subscription.subscription', {
       data: {
         strapiUserId: userId,
         plan: freePlan.id,
         status: 'active',
-        startDate: new Date().toISOString(), // Set the start date
+        startDate: new Date().toISOString(),
         expireDate: null,
       },
     });
-
-    return newSubscription;
   },
 
   /**
-   * Subscribes a user to a specific plan. If the user is re-subscribing to the same
-   * active plan, it extends the expiration date. Otherwise, it deactivates the old
-   * subscription and creates a new one.
-   * @param {object} params - The function parameters.
-   * @param {number} params.userId - The ID of the user.
-   * @param {number} params.planId - The ID of the plan.
-   * @returns {Promise<object>} The created or updated subscription object.
+   * Subscribes a user to a specific plan (for internal use).
    */
   async subscribeToPlan({ userId, planId }) {
-    // 1. Validate the target plan exists
-    const plan = await strapi.db.query('api::plan.plan').findOne({
-      where: { id: planId },
-    });
-
+    const plan = await strapi.entityService.findOne('api::plan.plan', planId);
     if (!plan) {
       throw new ApplicationError('The specified plan does not exist.');
     }
 
-    // 2. Find any existing active subscription for this user
-    const existingSubscription = await strapi.db.query('api::subscription.subscription').findOne({
-      where: { strapiUserId: userId, status: 'active' },
-      populate: { plan: true } // Populate plan to get its ID
+    const existingSubscriptions = await strapi.entityService.findMany('api::subscription.subscription', {
+      filters: { strapiUserId: userId, status: 'active' },
+      populate: { plan: true }
     });
-    
-    // 3. Calculate the new expiration date
+    const existingSubscription = existingSubscriptions.length > 0 ? existingSubscriptions[0] : null;
+
     let expireDate = null;
     if (plan.name !== 'Free') {
       const date = new Date();
@@ -82,68 +182,26 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
       expireDate = date.toISOString();
     }
 
-    // 4. Handle logic if a subscription already exists
     if (existingSubscription) {
-      // CASE A: User is re-subscribing to the SAME plan
-      // We just extend their expiration date. The start date remains the same.
       if (existingSubscription.plan.id === plan.id) {
         return await strapi.entityService.update('api::subscription.subscription', existingSubscription.id, {
           data: { expireDate: expireDate },
         });
       }
-
-      // CASE B: User is changing plans (upgrade/downgrade)
-      // We deactivate the old one first.
       await strapi.entityService.update('api::subscription.subscription', existingSubscription.id, {
-        data: {
-          status: 'canceled',
-        },
+        data: { status: 'canceled' },
       });
     }
 
-    // 5. Create the new active subscription
-    const newSubscription = await strapi.entityService.create('api::subscription.subscription', {
+    return await strapi.entityService.create('api::subscription.subscription', {
       data: {
         strapiUserId: userId,
         plan: plan.id,
         status: 'active',
-        startDate: new Date().toISOString(), // Set the start date
+        startDate: new Date().toISOString(),
         expireDate: expireDate,
       },
     });
-
-    return newSubscription;
   },
 
-  /**
-   * Verifies an Apple App Store receipt.
-   * @param {string} receipt - The JWS representation of the receipt.
-   * @returns {Promise<object>} The verification result.
-   */
-  async verifyApplePurchase(receipt) {
-    // TODO: Implement communication with Apple's App Store Server API
-    // 1. Send the receipt to Apple's verification endpoint.
-    // 2. Handle the response from Apple.
-    // 3. If the receipt is valid, extract the productID and expiresDate.
-    // 4. Update the user's subscription in your database based on the verified details.
-
-    console.log('Verifying Apple purchase with receipt:', receipt);
-    
-    // This is a placeholder response.
-    // You should replace this with the actual data from Apple's API.
-    const appleVerificationResult = {
-      productId: 'com.yourapp.product1',
-      expiresDate: new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000), // e.g., 30 days from now
-      isValid: true,
-    };
-    
-    if(!appleVerificationResult.isValid) {
-      throw new ApplicationError("Invalid receipt");
-    }
-
-    // Here you can add logic to update the user's subscription
-    // based on the appleVerificationResult
-
-    return appleVerificationResult;
-  },
 }));

@@ -98,7 +98,7 @@ curl -X GET 'http://localhost:2337/api/plans/1' \
     | jq .
 
 
-curl -X GET 'http://localhost:2337/api/v1/plans/1' \
+curl -X GET 'http://localhost:2337/api/v1/plans/2' \
     --header 'Content-Type: application/json' \
     --header 'Authorization: Bearer 3d5de296324f02591bedb549b0f72688733b4aca25a4d144993001d43943fdb7874d77f684e08c8abe53d3be98200dae148d546277d69cc097eb369bb56e74168eaedfe18745fa765a9918f7b4c13178799176315dd40b5c7fdd36c5e19a109fcc74dd49df55a7ae5e22fb20a66d749c30fffe3185e2e704c26efe3b4a396481' \
     | jq .
@@ -122,4 +122,18 @@ curl -X POST "http://localhost:2337/api/auth/local" \
 }' \
 | jq .
 
+curl -X POST 'http://localhost:2337/api/v1/verify-apple-purchase' \
+-H 'Authorization: Bearer 3d5de296324f02591bedb549b0f72688733b4aca25a4d144993001d43943fdb7874d77f684e08c8abe53d3be98200dae148d546277d69cc097eb369bb56e74168eaedfe18745fa765a9918f7b4c13178799176315dd40b5c7fdd36c5e19a109fcc74dd49df55a7ae5e22fb20a66d749c30fffe3185e2e704c26efe3b4a396481' \
+-H "Content-Type: application/json" \
+-d '{
+  "receipt": "apple receipt data here"
+}' \
+
+curl --location --request POST 'http://localhost:2337/api/v1/verify-apple-purchase' \
+-H 'Authorization: Bearer 3d5de296324f02591bedb549b0f72688733b4aca25a4d144993001d43943fdb7874d77f684e08c8abe53d3be98200dae148d546277d69cc097eb369bb56e74168eaedfe18745fa765a9918f7b4c13178799176315dd40b5c7fdd36c5e19a109fcc74dd49df55a7ae5e22fb20a66d749c30fffe3185e2e704c26efe3b4a396481' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "userId": "test-user-from-curl-123",
+    "receipt": "fakeheader.eyJhcHBBY2NvdW50VG9rZW4iOiAidGVzdC11c2VyLWZyb20tY3VybC0xMjMiLCAidHJhbnNhY3Rpb25JZCI6ICIzMDAwMDAwMTIzNDU2Nzg5In0=.fakesignature"
+}'
 

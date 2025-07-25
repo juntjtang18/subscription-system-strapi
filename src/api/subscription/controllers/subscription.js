@@ -1,5 +1,3 @@
-// ./src/api/subscription/controllers/subscription.js
-
 'use strict';
 
 /**
@@ -22,13 +20,10 @@ module.exports = createCoreController('api::subscription.subscription', ({ strap
     }
 
     try {
-      // First, create the subscription using the service.
       await strapi
         .service('api::subscription.subscription')
         .subscribeFreePlan(userId);
 
-      // Now, use the getSubscriptionForUser logic to fetch and return
-      // the fully populated and correctly structured subscription data.
       const newCtx = { ...ctx, params: { userId } };
       return this.getSubscriptionForUser(newCtx);
 
@@ -54,13 +49,10 @@ module.exports = createCoreController('api::subscription.subscription', ({ strap
     }
 
     try {
-      // First, create the subscription using the service.
       await strapi
         .service('api::subscription.subscription')
         .subscribeToPlan({ userId, planId });
 
-      // Now, use the getSubscriptionForUser logic to fetch and return
-      // the fully populated and correctly structured subscription data.
       const newCtx = { ...ctx, params: { userId } };
       return this.getSubscriptionForUser(newCtx);
 
@@ -86,7 +78,6 @@ module.exports = createCoreController('api::subscription.subscription', ({ strap
     }
 
     try {
-      // 1. Find the user's active subscription entity
       const subscriptions = await strapi.entityService.findMany('api::subscription.subscription', {
         filters: {
           strapiUserId: userId,
@@ -105,13 +96,10 @@ module.exports = createCoreController('api::subscription.subscription', ({ strap
         return ctx.internalServerError('Subscription found, but it has no associated plan.');
       }
       const planId = activeSubscription.plan.id;
-
-      // 2. Use the plan controller to get the fully detailed and correctly formatted plan data.
+      
       const planController = strapi.controller('api::plan.plan');
       const planResponse = await planController.findOneWithDetails({ params: { id: planId } });
-
-      // ** THE FIX IS HERE: Manually build the entire final response object **
-      // This gives us 100% control and avoids any automatic nesting issues.
+      
       const formattedSubscription = {
         id: activeSubscription.id,
         attributes: {
@@ -123,13 +111,10 @@ module.exports = createCoreController('api::subscription.subscription', ({ strap
           createdAt: activeSubscription.createdAt,
           updatedAt: activeSubscription.updatedAt,
           startDate: activeSubscription.startDate,
-          // Since planResponse is already {data, meta}, we assign its data object directly.
-          // The plan object will correctly have its own {id, attributes} structure inside.
           plan: planResponse.data,
         },
       };
       
-      // Return the manually constructed object, wrapped in a final 'data' key.
       return { data: formattedSubscription, meta: {} };
 
     } catch (error) {
@@ -137,19 +122,24 @@ module.exports = createCoreController('api::subscription.subscription', ({ strap
       return ctx.internalServerError('An unexpected error occurred while fetching the subscription.');
     }
   },
-  async verifyApplePurchase(ctx) {
-    const { receipt } = ctx.request.body;
 
-    if (!receipt) {
-      return ctx.badRequest('Receipt is missing');
+  async verifyApplePurchase(ctx) {
+    const { receipt, userId } = ctx.request.body;
+
+    if (!receipt || !userId) {
+      return ctx.badRequest('Receipt and User ID are required.');
     }
 
     try {
-      const verificationResult = await strapi
+      // 1. Let the service handle the entire verification and database update.
+      await strapi
         .service('api::subscription.subscription')
-        .verifyApplePurchase(receipt);
+        .verifyApplePurchase({ receipt, userId });
       
-      return { data: verificationResult, meta: {} };
+      // 2. After the service succeeds, call getSubscriptionForUser to format the response.
+      // This removes the circular dependency and fixes the crash.
+      const newCtx = { ...ctx, params: { userId } };
+      return this.getSubscriptionForUser(newCtx);
 
     } catch (error) {
       if (error.name === 'ApplicationError') {
@@ -159,4 +149,5 @@ module.exports = createCoreController('api::subscription.subscription', ({ strap
       return ctx.internalServerError('An unexpected error occurred.');
     }
   },
+
 }));
