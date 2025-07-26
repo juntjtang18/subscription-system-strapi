@@ -1,105 +1,69 @@
 'use strict';
 
-/**
- * subscription controller
- */
-
 const { createCoreController } = require('@strapi/strapi').factories;
+const { ApplicationError, NotFoundError } = require('@strapi/utils').errors;
+const logger = require('../../../utils/logger'); // Import the new logger
 
 module.exports = createCoreController('api::subscription.subscription', ({ strapi }) => ({
-  /**
-   * Creates a free tier subscription for a user and returns the full subscription details
-   * in the standard Strapi format.
-   * @param {object} ctx - The Koa context.
-   */
   async subscribeFreePlan(ctx) {
     const { userId } = ctx.request.body;
+    logger.debug(`[CTRL] /subscribe-free-plan: Received request for userId: ${userId}`);
 
     if (!userId) {
       return ctx.badRequest('User ID is missing');
     }
 
     try {
-      await strapi
-        .service('api::subscription.subscription')
-        .subscribeFreePlan(userId);
-
+      logger.debug(`[CTRL] /subscribe-free-plan: Calling service.`);
+      await strapi.service('api::subscription.subscription').subscribeFreePlan(userId);
+      logger.debug(`[CTRL] /subscribe-free-plan: Service call complete. Fetching full subscription.`);
+      
       const newCtx = { ...ctx, params: { userId } };
-      return this.getSubscriptionForUser(newCtx);
+      return await this.getSubscriptionForUser(newCtx);
 
     } catch (error) {
-      if (error.name === 'ApplicationError') {
+      logger.error(`[CTRL] /subscribe-free-plan: ERROR - Name: ${error.name}, Message: ${error.message}`);
+      if (error.name === 'ApplicationError' || error.name === 'NotFoundError') {
         return ctx.badRequest(error.message);
       }
-      console.error('Error in subscribeFreePlan:', error);
       return ctx.internalServerError('An unexpected error occurred.');
     }
   },
 
-  /**
-   * Creates a subscription to a specific plan and returns the full subscription details
-   * in the standard Strapi format.
-   * @param {object} ctx - The Koa context.
-   */
-  async subscribeToPlan(ctx) {
-    const { userId, planId } = ctx.request.body;
-
-    if (!userId || !planId) {
-      return ctx.badRequest('User ID and Plan ID are required.');
-    }
-
-    try {
-      await strapi
-        .service('api::subscription.subscription')
-        .subscribeToPlan({ userId, planId });
-
-      const newCtx = { ...ctx, params: { userId } };
-      return this.getSubscriptionForUser(newCtx);
-
-    } catch (error) {
-      if (error.name === 'ApplicationError') {
-        return ctx.badRequest(error.message);
-      }
-      console.error('Error in subscribeToPlan:', error);
-      return ctx.internalServerError('An unexpected error occurred.');
-    }
-  },
-
-  /**
-   * Gets the active subscription for a user, including detailed plan information,
-   * and returns it in the standard Strapi format.
-   * @param {object} ctx - The Koa context.
-   */
   async getSubscriptionForUser(ctx) {
     const { userId } = ctx.params;
+    logger.debug(`[CTRL] getSubscriptionForUser: Executing for userId: ${userId}`);
 
     if (!userId) {
       return ctx.badRequest('User ID is missing');
     }
 
     try {
+      const queryFilters = { strapiUserId: userId, status: 'active' };
+      logger.debug('[CTRL] getSubscriptionForUser: Querying DB with filters:', queryFilters);
+      
       const subscriptions = await strapi.entityService.findMany('api::subscription.subscription', {
-        filters: {
-          strapiUserId: userId,
-          status: 'active',
-        },
+        filters: queryFilters,
         populate: { plan: true },
       });
+      
+      logger.debug(`[CTRL] getSubscriptionForUser: DB query returned ${subscriptions.length} results.`);
 
       if (!subscriptions || subscriptions.length === 0) {
-        return ctx.notFound('No active subscription found for this user.');
+        logger.error('[CTRL] getSubscriptionForUser: ERROR - No active subscription found.');
+        throw new NotFoundError('No active subscription found for this user.');
       }
 
       const activeSubscription = subscriptions[0];
+      logger.debug(`[CTRL] getSubscriptionForUser: Found active subscription ID: ${activeSubscription.id}`);
       
       if (!activeSubscription.plan?.id) {
-        return ctx.internalServerError('Subscription found, but it has no associated plan.');
+        throw new ApplicationError('Subscription found, but it has no associated plan.');
       }
-      const planId = activeSubscription.plan.id;
       
+      const planId = activeSubscription.plan.id;
       const planController = strapi.controller('api::plan.plan');
       const planResponse = await planController.findOneWithDetails({ params: { id: planId } });
-      
       const formattedSubscription = {
         id: activeSubscription.id,
         attributes: {
@@ -114,40 +78,39 @@ module.exports = createCoreController('api::subscription.subscription', ({ strap
           plan: planResponse.data,
         },
       };
-      
       return { data: formattedSubscription, meta: {} };
 
     } catch (error) {
-      console.error('Error in getSubscriptionForUser:', error);
-      return ctx.internalServerError('An unexpected error occurred while fetching the subscription.');
+      logger.error(`[CTRL] getSubscriptionForUser: ERROR - Name: ${error.name}, Message: ${error.message}`);
+      throw error;
+    }
+  },
+  
+  async subscribeToPlan(ctx) {
+    const { userId, planId } = ctx.request.body;
+    if (!userId || !planId) { return ctx.badRequest('User ID and Plan ID are required.'); }
+    try {
+      await strapi.service('api::subscription.subscription').subscribeToPlan({ userId, planId });
+      const newCtx = { ...ctx, params: { userId } };
+      return await this.getSubscriptionForUser(newCtx);
+    } catch (error) {
+      if (error.name === 'ApplicationError' || error.name === 'NotFoundError') { return ctx.badRequest(error.message); }
+      logger.error('Error in subscribeToPlan:', error);
+      return ctx.internalServerError('An unexpected error occurred.');
     }
   },
 
   async verifyApplePurchase(ctx) {
     const { receipt, userId } = ctx.request.body;
-
-    if (!receipt || !userId) {
-      return ctx.badRequest('Receipt and User ID are required.');
-    }
-
+    if (!receipt || !userId) { return ctx.badRequest('Receipt and User ID are required.'); }
     try {
-      // 1. Let the service handle the entire verification and database update.
-      await strapi
-        .service('api::subscription.subscription')
-        .verifyApplePurchase({ receipt, userId });
-      
-      // 2. After the service succeeds, call getSubscriptionForUser to format the response.
-      // This removes the circular dependency and fixes the crash.
+      await strapi.service('api::subscription.subscription').verifyApplePurchase({ receipt, userId });
       const newCtx = { ...ctx, params: { userId } };
-      return this.getSubscriptionForUser(newCtx);
-
+      return await this.getSubscriptionForUser(newCtx);
     } catch (error) {
-      if (error.name === 'ApplicationError') {
-        return ctx.badRequest(error.message);
-      }
-      console.error('Error in verifyApplePurchase:', error);
+      if (error.name === 'ApplicationError' || error.name === 'NotFoundError') { return ctx.badRequest(error.message); }
+      logger.error('Error in verifyApplePurchase:', error);
       return ctx.internalServerError('An unexpected error occurred.');
     }
   },
-
 }));
