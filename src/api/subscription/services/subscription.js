@@ -158,7 +158,12 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
     const verifiedTransaction = await this.getVerifiedTransaction(decodedTransaction);
     logger.debug('[SVC] Verified transaction data received:', verifiedTransaction);
 
-    const { productId, expiresDate, originalTransactionId, purchaseDate, transactionId } = verifiedTransaction;
+    const { expiresDate, originalTransactionId, purchaseDate, transactionId } = verifiedTransaction;
+
+    // Conditionally select the product ID based on the environment variable
+    const useV2Endpoint = process.env.APPLE_API_VERSION === 'v2';
+    const productId = useV2Endpoint ? verifiedTransaction.productId : decodedTransaction.productId;
+
     if (!productId || !expiresDate) {
         throw new ApplicationError('Missing product or expiration info from Apple.');
     }
@@ -182,16 +187,13 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
         latestTransactionId: transactionId || decodedTransaction.transactionId,
     };
 
-    const [existingSubscription] = await strapi.entityService.findMany('api::subscription.subscription', {
-        filters: { originalTransactionId },
-        limit: 1,
-    });
+    // --- LOGIC CORRECTION ---
+    // Always create a new subscription record for a new valid transaction.
+    // The cancelOtherActiveSubscriptions function will handle deactivating the old one.
 
-    const savedSubscription = existingSubscription
-        ? await strapi.entityService.update('api::subscription.subscription', existingSubscription.id, { data: subscriptionData })
-        : await strapi.entityService.create('api::subscription.subscription', { data: subscriptionData });
+    const savedSubscription = await strapi.entityService.create('api::subscription.subscription', { data: subscriptionData });
 
-
+    // This function will find any other 'active' subscriptions for the user and deactivate them.
     await this.cancelOtherActiveSubscriptions(userId, savedSubscription.id);
 
     logger.debug('[SVC] --- Database update complete. Verification successful. ---');
