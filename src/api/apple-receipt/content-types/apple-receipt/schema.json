@@ -1,0 +1,41 @@
+{
+  "kind": "collectionType",
+  "collectionName": "apple_receipts",
+  "info": {
+    "singularName": "apple-receipt",
+    "pluralName": "apple-receipts",
+    "displayName": "apple receipt"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "transactionId": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "userId": {
+      "type": "integer",
+      "required": true
+    },
+    "rawReceipt": {
+      "type": "text",
+      "required": true
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "pending_verification",
+        "verified",
+        "failed_verification"
+      ],
+      "default": "pending_verification",
+      "required": true
+    },
+    "lastAttemptAt": {
+      "type": "datetime"
+    }
+  }
+}

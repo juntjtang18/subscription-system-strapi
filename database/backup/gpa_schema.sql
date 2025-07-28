@@ -223,6 +223,128 @@ ALTER SEQUENCE public.admin_users_roles_links_id_seq OWNED BY public.admin_users
 
 
 --
+-- Name: apple_notifications; Type: TABLE; Schema: public; Owner: strapi
+--
+
+CREATE TABLE public.apple_notifications (
+    id integer NOT NULL,
+    notification_uuid character varying(255),
+    notification_type character varying(255),
+    subtype character varying(255),
+    original_transaction_id character varying(255),
+    processing_status character varying(255),
+    raw_signed_payload text,
+    transaction_info jsonb,
+    created_at timestamp(6) without time zone,
+    updated_at timestamp(6) without time zone,
+    created_by_id integer,
+    updated_by_id integer
+);
+
+
+ALTER TABLE public.apple_notifications OWNER TO strapi;
+
+--
+-- Name: apple_notifications_id_seq; Type: SEQUENCE; Schema: public; Owner: strapi
+--
+
+CREATE SEQUENCE public.apple_notifications_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.apple_notifications_id_seq OWNER TO strapi;
+
+--
+-- Name: apple_notifications_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: strapi
+--
+
+ALTER SEQUENCE public.apple_notifications_id_seq OWNED BY public.apple_notifications.id;
+
+
+--
+-- Name: apple_notifications_subscription_links; Type: TABLE; Schema: public; Owner: strapi
+--
+
+CREATE TABLE public.apple_notifications_subscription_links (
+    id integer NOT NULL,
+    apple_notification_id integer,
+    subscription_id integer,
+    apple_notification_order double precision
+);
+
+
+ALTER TABLE public.apple_notifications_subscription_links OWNER TO strapi;
+
+--
+-- Name: apple_notifications_subscription_links_id_seq; Type: SEQUENCE; Schema: public; Owner: strapi
+--
+
+CREATE SEQUENCE public.apple_notifications_subscription_links_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.apple_notifications_subscription_links_id_seq OWNER TO strapi;
+
+--
+-- Name: apple_notifications_subscription_links_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: strapi
+--
+
+ALTER SEQUENCE public.apple_notifications_subscription_links_id_seq OWNED BY public.apple_notifications_subscription_links.id;
+
+
+--
+-- Name: apple_receipts; Type: TABLE; Schema: public; Owner: strapi
+--
+
+CREATE TABLE public.apple_receipts (
+    id integer NOT NULL,
+    transaction_id character varying(255),
+    user_id integer,
+    raw_receipt text,
+    status character varying(255),
+    last_attempt_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone,
+    updated_at timestamp(6) without time zone,
+    created_by_id integer,
+    updated_by_id integer
+);
+
+
+ALTER TABLE public.apple_receipts OWNER TO strapi;
+
+--
+-- Name: apple_receipts_id_seq; Type: SEQUENCE; Schema: public; Owner: strapi
+--
+
+CREATE SEQUENCE public.apple_receipts_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.apple_receipts_id_seq OWNER TO strapi;
+
+--
+-- Name: apple_receipts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: strapi
+--
+
+ALTER SEQUENCE public.apple_receipts_id_seq OWNED BY public.apple_receipts.id;
+
+
+--
 -- Name: components_a_features; Type: TABLE; Schema: public; Owner: strapi
 --
 
@@ -576,6 +698,44 @@ ALTER SEQUENCE public.i18n_locale_id_seq OWNED BY public.i18n_locale.id;
 
 
 --
+-- Name: pings; Type: TABLE; Schema: public; Owner: strapi
+--
+
+CREATE TABLE public.pings (
+    id integer NOT NULL,
+    status character varying(255),
+    created_at timestamp(6) without time zone,
+    updated_at timestamp(6) without time zone,
+    created_by_id integer,
+    updated_by_id integer
+);
+
+
+ALTER TABLE public.pings OWNER TO strapi;
+
+--
+-- Name: pings_id_seq; Type: SEQUENCE; Schema: public; Owner: strapi
+--
+
+CREATE SEQUENCE public.pings_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.pings_id_seq OWNER TO strapi;
+
+--
+-- Name: pings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: strapi
+--
+
+ALTER SEQUENCE public.pings_id_seq OWNED BY public.pings.id;
+
+
+--
 -- Name: plan_ent_links; Type: TABLE; Schema: public; Owner: strapi
 --
 
@@ -701,7 +861,8 @@ CREATE TABLE public.plans (
     sale_product_id character varying(255),
     sale_start_date timestamp(6) without time zone,
     sale_end_date timestamp(6) without time zone,
-    "order" integer
+    "order" integer,
+    role character varying(255)
 );
 
 
@@ -1645,6 +1806,27 @@ ALTER TABLE ONLY public.admin_users_roles_links ALTER COLUMN id SET DEFAULT next
 
 
 --
+-- Name: apple_notifications id; Type: DEFAULT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_notifications ALTER COLUMN id SET DEFAULT nextval('public.apple_notifications_id_seq'::regclass);
+
+
+--
+-- Name: apple_notifications_subscription_links id; Type: DEFAULT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_notifications_subscription_links ALTER COLUMN id SET DEFAULT nextval('public.apple_notifications_subscription_links_id_seq'::regclass);
+
+
+--
+-- Name: apple_receipts id; Type: DEFAULT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_receipts ALTER COLUMN id SET DEFAULT nextval('public.apple_receipts_id_seq'::regclass);
+
+
+--
 -- Name: components_a_features id; Type: DEFAULT; Schema: public; Owner: strapi
 --
 
@@ -1705,6 +1887,13 @@ ALTER TABLE ONLY public.files_related_morphs ALTER COLUMN id SET DEFAULT nextval
 --
 
 ALTER TABLE ONLY public.i18n_locale ALTER COLUMN id SET DEFAULT nextval('public.i18n_locale_id_seq'::regclass);
+
+
+--
+-- Name: pings id; Type: DEFAULT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.pings ALTER COLUMN id SET DEFAULT nextval('public.pings_id_seq'::regclass);
 
 
 --
@@ -1953,6 +2142,38 @@ ALTER TABLE ONLY public.admin_users_roles_links
 
 
 --
+-- Name: apple_notifications apple_notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_notifications
+    ADD CONSTRAINT apple_notifications_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: apple_notifications_subscription_links apple_notifications_subscription_links_pkey; Type: CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_notifications_subscription_links
+    ADD CONSTRAINT apple_notifications_subscription_links_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: apple_notifications_subscription_links apple_notifications_subscription_links_unique; Type: CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_notifications_subscription_links
+    ADD CONSTRAINT apple_notifications_subscription_links_unique UNIQUE (apple_notification_id, subscription_id);
+
+
+--
+-- Name: apple_receipts apple_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_receipts
+    ADD CONSTRAINT apple_receipts_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: components_a_features components_a_features_pkey; Type: CONSTRAINT; Schema: public; Owner: strapi
 --
 
@@ -2054,6 +2275,14 @@ ALTER TABLE ONLY public.files_related_morphs
 
 ALTER TABLE ONLY public.i18n_locale
     ADD CONSTRAINT i18n_locale_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pings pings_pkey; Type: CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.pings
+    ADD CONSTRAINT pings_pkey PRIMARY KEY (id);
 
 
 --
@@ -2468,6 +2697,55 @@ CREATE INDEX admin_users_updated_by_id_fk ON public.admin_users USING btree (upd
 
 
 --
+-- Name: apple_notifications_created_by_id_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX apple_notifications_created_by_id_fk ON public.apple_notifications USING btree (created_by_id);
+
+
+--
+-- Name: apple_notifications_subscription_links_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX apple_notifications_subscription_links_fk ON public.apple_notifications_subscription_links USING btree (apple_notification_id);
+
+
+--
+-- Name: apple_notifications_subscription_links_inv_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX apple_notifications_subscription_links_inv_fk ON public.apple_notifications_subscription_links USING btree (subscription_id);
+
+
+--
+-- Name: apple_notifications_subscription_links_order_inv_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX apple_notifications_subscription_links_order_inv_fk ON public.apple_notifications_subscription_links USING btree (apple_notification_order);
+
+
+--
+-- Name: apple_notifications_updated_by_id_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX apple_notifications_updated_by_id_fk ON public.apple_notifications USING btree (updated_by_id);
+
+
+--
+-- Name: apple_receipts_created_by_id_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX apple_receipts_created_by_id_fk ON public.apple_receipts USING btree (created_by_id);
+
+
+--
+-- Name: apple_receipts_updated_by_id_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX apple_receipts_updated_by_id_fk ON public.apple_receipts USING btree (updated_by_id);
+
+
+--
 -- Name: entitlements_created_by_id_fk; Type: INDEX; Schema: public; Owner: strapi
 --
 
@@ -2612,6 +2890,20 @@ CREATE INDEX i18n_locale_created_by_id_fk ON public.i18n_locale USING btree (cre
 --
 
 CREATE INDEX i18n_locale_updated_by_id_fk ON public.i18n_locale USING btree (updated_by_id);
+
+
+--
+-- Name: pings_created_by_id_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX pings_created_by_id_fk ON public.pings USING btree (created_by_id);
+
+
+--
+-- Name: pings_updated_by_id_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX pings_updated_by_id_fk ON public.pings USING btree (updated_by_id);
 
 
 --
@@ -3136,6 +3428,54 @@ ALTER TABLE ONLY public.admin_users
 
 
 --
+-- Name: apple_notifications apple_notifications_created_by_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_notifications
+    ADD CONSTRAINT apple_notifications_created_by_id_fk FOREIGN KEY (created_by_id) REFERENCES public.admin_users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: apple_notifications_subscription_links apple_notifications_subscription_links_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_notifications_subscription_links
+    ADD CONSTRAINT apple_notifications_subscription_links_fk FOREIGN KEY (apple_notification_id) REFERENCES public.apple_notifications(id) ON DELETE CASCADE;
+
+
+--
+-- Name: apple_notifications_subscription_links apple_notifications_subscription_links_inv_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_notifications_subscription_links
+    ADD CONSTRAINT apple_notifications_subscription_links_inv_fk FOREIGN KEY (subscription_id) REFERENCES public.subscriptions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: apple_notifications apple_notifications_updated_by_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_notifications
+    ADD CONSTRAINT apple_notifications_updated_by_id_fk FOREIGN KEY (updated_by_id) REFERENCES public.admin_users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: apple_receipts apple_receipts_created_by_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_receipts
+    ADD CONSTRAINT apple_receipts_created_by_id_fk FOREIGN KEY (created_by_id) REFERENCES public.admin_users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: apple_receipts apple_receipts_updated_by_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.apple_receipts
+    ADD CONSTRAINT apple_receipts_updated_by_id_fk FOREIGN KEY (updated_by_id) REFERENCES public.admin_users(id) ON DELETE SET NULL;
+
+
+--
 -- Name: entitlements entitlements_created_by_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
 --
 
@@ -3253,6 +3593,22 @@ ALTER TABLE ONLY public.i18n_locale
 
 ALTER TABLE ONLY public.i18n_locale
     ADD CONSTRAINT i18n_locale_updated_by_id_fk FOREIGN KEY (updated_by_id) REFERENCES public.admin_users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: pings pings_created_by_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.pings
+    ADD CONSTRAINT pings_created_by_id_fk FOREIGN KEY (created_by_id) REFERENCES public.admin_users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: pings pings_updated_by_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.pings
+    ADD CONSTRAINT pings_updated_by_id_fk FOREIGN KEY (updated_by_id) REFERENCES public.admin_users(id) ON DELETE SET NULL;
 
 
 --

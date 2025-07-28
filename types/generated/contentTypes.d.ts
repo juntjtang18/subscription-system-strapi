@@ -723,6 +723,43 @@ export interface ApiAppleNotificationAppleNotification
   };
 }
 
+export interface ApiAppleReceiptAppleReceipt extends Schema.CollectionType {
+  collectionName: 'apple_receipts';
+  info: {
+    singularName: 'apple-receipt';
+    pluralName: 'apple-receipts';
+    displayName: 'apple receipt';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    transactionId: Attribute.String & Attribute.Required & Attribute.Unique;
+    userId: Attribute.Integer & Attribute.Required;
+    rawReceipt: Attribute.Text & Attribute.Required;
+    status: Attribute.Enumeration<
+      ['pending_verification', 'verified', 'failed_verification']
+    > &
+      Attribute.Required &
+      Attribute.DefaultTo<'pending_verification'>;
+    lastAttemptAt: Attribute.DateTime;
+    createdAt: Attribute.DateTime;
+    updatedAt: Attribute.DateTime;
+    createdBy: Attribute.Relation<
+      'api::apple-receipt.apple-receipt',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    updatedBy: Attribute.Relation<
+      'api::apple-receipt.apple-receipt',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+  };
+}
+
 export interface ApiEntitlementEntitlement extends Schema.CollectionType {
   collectionName: 'entitlements';
   info: {
@@ -1101,6 +1138,7 @@ declare module '@strapi/types' {
       'plugin::users-permissions.role': PluginUsersPermissionsRole;
       'plugin::users-permissions.user': PluginUsersPermissionsUser;
       'api::apple-notification.apple-notification': ApiAppleNotificationAppleNotification;
+      'api::apple-receipt.apple-receipt': ApiAppleReceiptAppleReceipt;
       'api::entitlement.entitlement': ApiEntitlementEntitlement;
       'api::feature.feature': ApiFeatureFeature;
       'api::ping.ping': ApiPingPing;

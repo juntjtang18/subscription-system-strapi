@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const { Buffer } = require('buffer');
 const logger = require('../../../utils/logger');
+const { verifyAppleJWS } = require('../../../utils/apple-jws-verifier');
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Environment Variables
@@ -14,7 +15,6 @@ const APPLE_API_BASE_URL = APPLE_ENVIRONMENT === 'production'
   ? 'https://api.storekit.itunes.apple.com'
   : 'https://api.storekit-sandbox.itunes.apple.com';
 const APPLE_CONNECT_MOCK = process.env.APPLE_CONNECT_MOCK === 'true';
-const APPLE_API_VERSION = process.env.APPLE_API_VERSION || 'v2';
 
 module.exports = createCoreService('api::subscription.subscription', ({ strapi }) => ({
 
@@ -33,47 +33,6 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
     const payload = { iss: issuerId, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + (5 * 60), aud: 'appstoreconnect-v1', bid: bundleId };
     const options = { algorithm: 'ES256', header: { alg: 'ES256', kid: keyId, typ: 'JWT' } };
     return jwt.sign(payload, formattedPrivateKey, options);
-  },
-
-  async getVerifiedTransaction(decodedTransaction) {
-    if (APPLE_CONNECT_MOCK) {
-        return {
-            productId: 'ca.geniusparentingai.basic.monthly',
-            expiresDate: new Date().getTime() + 30 * 24 * 60 * 60 * 1000,
-            originalTransactionId: 'mock-original-' + Date.now(),
-            purchaseDate: new Date().getTime(),
-        };
-    }
-
-    const { transactionId, originalTransactionId } = decodedTransaction;
-    const appleApiToken = this.generateAppleApiToken();
-    let url = `${APPLE_API_BASE_URL}/inApps/v2/transactions/${transactionId}`;
-    if (APPLE_API_VERSION === 'v1_history' && originalTransactionId) {
-        url = `${APPLE_API_BASE_URL}/inApps/v1/history/${originalTransactionId}`;
-    }
-
-
-    for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-            const response = await axios.get(url, { headers: { 'Authorization': `Bearer ${appleApiToken}` } });
-            const signedTransactions = response.data.signedTransactions || [response.data.signedTransactionInfo];
-
-            if (!signedTransactions || signedTransactions.length === 0) {
-                throw new ApplicationError('No signed transactions found in Apple API response.');
-            }
-
-            const latestTransaction = signedTransactions[signedTransactions.length - 1];
-            const payload = latestTransaction.split('.')[1];
-            return JSON.parse(Buffer.from(payload, 'base64').toString('utf8'));
-        } catch (error) {
-            if (error.response?.status === 404 && attempt < 3) {
-                await sleep(attempt * 1000);
-            } else {
-                logger.error(`Apple API Error after all retries: ${error.response?.data || error.message}`);
-                throw new ApplicationError('Failed to verify purchase with Apple.');
-            }
-        }
-    }
   },
 
   generateExpectedAppAccountToken(userId) {
@@ -110,62 +69,34 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
     }
   },
 
-  async decodeAndValidateReceipt(receipt, userId) {
-    // Log the raw receipt data for debugging
-    logger.debug('[SVC] Raw receipt data received:', receipt);
-    try {
-        const payload = receipt.split('.')[1];
-        const decodedTransaction = JSON.parse(Buffer.from(payload, 'base64').toString('utf8'));
-
-        // Log the decoded transaction for debugging
-        logger.debug('[SVC] Decoded transaction data:', decodedTransaction);
-
-        const expectedToken = this.generateExpectedAppAccountToken(userId);
-        const receivedToken = decodedTransaction.appAccountToken;
-
-        if (receivedToken && receivedToken.toLowerCase() === expectedToken) {
-            return decodedTransaction;
-        }
-
-        const { originalTransactionId } = decodedTransaction;
-        if (originalTransactionId) {
-            const [existingSubscription] = await strapi.entityService.findMany('api::subscription.subscription', {
-                filters: { originalTransactionId, strapiUserId: userId },
-                limit: 1,
-            });
-
-            if (existingSubscription) {
-                return decodedTransaction;
-            }
-        }
-
-        throw new ApplicationError('User ID does not match the purchase receipt.');
-
-    } catch (e) {
-        logger.error('[SVC] verifyApplePurchase: ERROR - Failed to decode or validate receipt.', e);
-        throw new ApplicationError('Invalid receipt format or validation failed.');
-    }
-  },
-
-
   // --- CORE SERVICE FUNCTIONS ---
 
   async verifyApplePurchase({ receipt, userId }) {
     logger.debug(`[SVC] verifyApplePurchase for userId: ${userId}`);
 
-    const decodedTransaction = await this.decodeAndValidateReceipt(receipt, userId);
+    // 1. Verify the JWS signature locally. This is the source of truth for immediate activation.
+    let decodedTransaction;
+    try {
+        decodedTransaction = await verifyAppleJWS(receipt);
+        logger.debug('[SVC] Local JWS verification successful:', decodedTransaction);
+    } catch (error) {
+        logger.error(`[SVC] Local JWS verification failed: ${error.message}`);
+        throw new ApplicationError('Invalid purchase receipt.');
+    }
 
-    const verifiedTransaction = await this.getVerifiedTransaction(decodedTransaction);
-    logger.debug('[SVC] Verified transaction data received:', verifiedTransaction);
+    // 2. Validate the user ID from the token
+    const expectedToken = this.generateExpectedAppAccountToken(userId);
+    const receivedToken = decodedTransaction.appAccountToken;
 
-    const { expiresDate, originalTransactionId, purchaseDate, transactionId } = verifiedTransaction;
+    if (receivedToken && receivedToken.toLowerCase() !== expectedToken) {
+        throw new ApplicationError('User ID does not match the purchase receipt.');
+    }
 
-    // Conditionally select the product ID based on the environment variable
-    const useV2Endpoint = process.env.APPLE_API_VERSION === 'v2';
-    const productId = useV2Endpoint ? verifiedTransaction.productId : decodedTransaction.productId;
+    // Use the locally verified data for immediate activation
+    const { expiresDate, originalTransactionId, purchaseDate, transactionId, productId } = decodedTransaction;
 
     if (!productId || !expiresDate) {
-        throw new ApplicationError('Missing product or expiration info from Apple.');
+        throw new ApplicationError('Missing product or expiration info from decoded receipt.');
     }
 
     const [plan] = await strapi.entityService.findMany('api::plan.plan', {
@@ -184,20 +115,31 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
         startDate: new Date(purchaseDate).toISOString(),
         expireDate: new Date(expiresDate).toISOString(),
         originalTransactionId,
-        latestTransactionId: transactionId || decodedTransaction.transactionId,
+        latestTransactionId: transactionId,
     };
 
-    // --- LOGIC CORRECTION ---
-    // Always create a new subscription record for a new valid transaction.
-    // The cancelOtherActiveSubscriptions function will handle deactivating the old one.
-
+    // 3. Create the new subscription and deactivate old ones
     const savedSubscription = await strapi.entityService.create('api::subscription.subscription', { data: subscriptionData });
-
-    // This function will find any other 'active' subscriptions for the user and deactivate them.
     await this.cancelOtherActiveSubscriptions(userId, savedSubscription.id);
 
-    logger.debug('[SVC] --- Database update complete. Verification successful. ---');
-    return;
+    // 4. Persist the receipt for the background verification job
+    try {
+      await strapi.entityService.create('api::apple-receipt.apple-receipt', {
+        data: {
+          transactionId: decodedTransaction.transactionId,
+          userId: userId,
+          rawReceipt: receipt,
+          status: 'pending_verification',
+        },
+      });
+      logger.info(`[SVC] Saved receipt for transaction ${decodedTransaction.transactionId} for background verification.`);
+    } catch (error) {
+      // Log as a critical error but do not fail the request, as the user is already activated.
+      logger.error(`[SVC] CRITICAL: Failed to save receipt for background job. TID: ${decodedTransaction.transactionId}`, error);
+    }
+
+    logger.debug(`[SVC] --- Database update complete. User ${userId} is now subscribed. ---`);
+    return { success: true, message: 'Subscription activated successfully.' };
   },
 
   async subscribeFreePlan(userId) {
