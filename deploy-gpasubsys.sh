@@ -69,6 +69,14 @@ gcloud run deploy "${SERVICE_NAME}" \
   --set-env-vars "JWT_SECRET=${JWT_SECRET}" \
   --set-env-vars "TRANSFER_TOKEN_SALT=${TRANSFER_TOKEN_SALT}" \
   --set-env-vars "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+  --set-env-vars "APPLE_ISSUER_ID=${APPLE_ISSUER_ID}" \
+  --set-env-vars "APPLE_KEY_ID=${APPLE_KEY_ID}" \
+  --set-env-vars "APPLE_BUNDLE_ID=${APPLE_BUNDLE_ID}" \
+  --set-env-vars "APPLE_PRIVATE_KEY=${APPLE_PRIVATE_KEY}" \
+  --set-env-vars "APPLE_ENVIRONMENT=${APPLE_ENVIRONMENT}" \
+  --set-env-vars "APPLE_CONNECT_MOCK=${APPLE_CONNECT_MOCK}" \
+  --set-env-vars "LOG_LEVEL=${LOG_LEVEL}" \
+  --set-env-vars "APPLE_API_VERSION=${APPLE_API_VERSION}" \
   --revision-suffix "v${VERSION//./-}"
 
 echo "--- Deployment of ${SERVICE_NAME} version ${VERSION} complete! ---"

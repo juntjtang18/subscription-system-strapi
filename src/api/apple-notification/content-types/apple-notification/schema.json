@@ -1,0 +1,53 @@
+{
+  "kind": "collectionType",
+  "collectionName": "apple_notifications",
+  "info": {
+    "singularName": "apple-notification",
+    "pluralName": "apple-notifications",
+    "displayName": "apple notification",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "notificationUUID": {
+      "type": "string",
+      "required": false,
+      "unique": false
+    },
+    "notificationType": {
+      "type": "string"
+    },
+    "subtype": {
+      "type": "string"
+    },
+    "originalTransactionId": {
+      "type": "string"
+    },
+    "processingStatus": {
+      "type": "enumeration",
+      "enum": [
+        "received",
+        "processed",
+        "failed_verification",
+        "failed_not_found"
+      ],
+      "default": "received",
+      "required": true
+    },
+    "rawSignedPayload": {
+      "type": "text"
+    },
+    "transactionInfo": {
+      "type": "json"
+    },
+    "subscription": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::subscription.subscription",
+      "inversedBy": "apple_notifications"
+    }
+  }
+}

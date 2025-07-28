@@ -677,6 +677,52 @@ export interface PluginUsersPermissionsUser extends Schema.CollectionType {
   };
 }
 
+export interface ApiAppleNotificationAppleNotification
+  extends Schema.CollectionType {
+  collectionName: 'apple_notifications';
+  info: {
+    singularName: 'apple-notification';
+    pluralName: 'apple-notifications';
+    displayName: 'apple notification';
+    description: '';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    notificationUUID: Attribute.String;
+    notificationType: Attribute.String;
+    subtype: Attribute.String;
+    originalTransactionId: Attribute.String;
+    processingStatus: Attribute.Enumeration<
+      ['received', 'processed', 'failed_verification', 'failed_not_found']
+    > &
+      Attribute.Required &
+      Attribute.DefaultTo<'received'>;
+    rawSignedPayload: Attribute.Text;
+    transactionInfo: Attribute.JSON;
+    subscription: Attribute.Relation<
+      'api::apple-notification.apple-notification',
+      'manyToOne',
+      'api::subscription.subscription'
+    >;
+    createdAt: Attribute.DateTime;
+    updatedAt: Attribute.DateTime;
+    createdBy: Attribute.Relation<
+      'api::apple-notification.apple-notification',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    updatedBy: Attribute.Relation<
+      'api::apple-notification.apple-notification',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+  };
+}
+
 export interface ApiEntitlementEntitlement extends Schema.CollectionType {
   collectionName: 'entitlements';
   info: {
@@ -980,6 +1026,11 @@ export interface ApiSubscriptionSubscription extends Schema.CollectionType {
     originalTransactionId: Attribute.String;
     latestTransactionId: Attribute.String;
     startDate: Attribute.DateTime;
+    apple_notifications: Attribute.Relation<
+      'api::subscription.subscription',
+      'oneToMany',
+      'api::apple-notification.apple-notification'
+    >;
     createdAt: Attribute.DateTime;
     updatedAt: Attribute.DateTime;
     createdBy: Attribute.Relation<
@@ -1049,6 +1100,7 @@ declare module '@strapi/types' {
       'plugin::users-permissions.permission': PluginUsersPermissionsPermission;
       'plugin::users-permissions.role': PluginUsersPermissionsRole;
       'plugin::users-permissions.user': PluginUsersPermissionsUser;
+      'api::apple-notification.apple-notification': ApiAppleNotificationAppleNotification;
       'api::entitlement.entitlement': ApiEntitlementEntitlement;
       'api::feature.feature': ApiFeatureFeature;
       'api::ping.ping': ApiPingPing;

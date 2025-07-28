@@ -43,6 +43,12 @@
     },
     "startDate": {
       "type": "datetime"
+    },
+    "apple_notifications": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::apple-notification.apple-notification",
+      "mappedBy": "subscription"
     }
   }
 }
