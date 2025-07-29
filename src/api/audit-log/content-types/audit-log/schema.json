@@ -1,0 +1,34 @@
+{
+  "kind": "collectionType",
+  "collectionName": "audit_logs",
+  "info": {
+    "singularName": "audit-log",
+    "pluralName": "audit-logs",
+    "displayName": "audit log"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "event": {
+      "type": "string"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "SUCCESS",
+        "FAILURE",
+        "WARNING",
+        "INFO"
+      ],
+      "required": true
+    },
+    "message": {
+      "type": "string"
+    },
+    "details": {
+      "type": "json"
+    }
+  }
+}

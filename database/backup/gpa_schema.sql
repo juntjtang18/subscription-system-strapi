@@ -345,6 +345,47 @@ ALTER SEQUENCE public.apple_receipts_id_seq OWNED BY public.apple_receipts.id;
 
 
 --
+-- Name: audit_logs; Type: TABLE; Schema: public; Owner: strapi
+--
+
+CREATE TABLE public.audit_logs (
+    id integer NOT NULL,
+    event character varying(255),
+    status character varying(255),
+    message character varying(255),
+    details jsonb,
+    created_at timestamp(6) without time zone,
+    updated_at timestamp(6) without time zone,
+    created_by_id integer,
+    updated_by_id integer
+);
+
+
+ALTER TABLE public.audit_logs OWNER TO strapi;
+
+--
+-- Name: audit_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: strapi
+--
+
+CREATE SEQUENCE public.audit_logs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.audit_logs_id_seq OWNER TO strapi;
+
+--
+-- Name: audit_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: strapi
+--
+
+ALTER SEQUENCE public.audit_logs_id_seq OWNED BY public.audit_logs.id;
+
+
+--
 -- Name: components_a_features; Type: TABLE; Schema: public; Owner: strapi
 --
 
@@ -1827,6 +1868,13 @@ ALTER TABLE ONLY public.apple_receipts ALTER COLUMN id SET DEFAULT nextval('publ
 
 
 --
+-- Name: audit_logs id; Type: DEFAULT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.audit_logs ALTER COLUMN id SET DEFAULT nextval('public.audit_logs_id_seq'::regclass);
+
+
+--
 -- Name: components_a_features id; Type: DEFAULT; Schema: public; Owner: strapi
 --
 
@@ -2171,6 +2219,14 @@ ALTER TABLE ONLY public.apple_notifications_subscription_links
 
 ALTER TABLE ONLY public.apple_receipts
     ADD CONSTRAINT apple_receipts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: audit_logs audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.audit_logs
+    ADD CONSTRAINT audit_logs_pkey PRIMARY KEY (id);
 
 
 --
@@ -2743,6 +2799,20 @@ CREATE INDEX apple_receipts_created_by_id_fk ON public.apple_receipts USING btre
 --
 
 CREATE INDEX apple_receipts_updated_by_id_fk ON public.apple_receipts USING btree (updated_by_id);
+
+
+--
+-- Name: audit_logs_created_by_id_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX audit_logs_created_by_id_fk ON public.audit_logs USING btree (created_by_id);
+
+
+--
+-- Name: audit_logs_updated_by_id_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX audit_logs_updated_by_id_fk ON public.audit_logs USING btree (updated_by_id);
 
 
 --
@@ -3473,6 +3543,22 @@ ALTER TABLE ONLY public.apple_receipts
 
 ALTER TABLE ONLY public.apple_receipts
     ADD CONSTRAINT apple_receipts_updated_by_id_fk FOREIGN KEY (updated_by_id) REFERENCES public.admin_users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: audit_logs audit_logs_created_by_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.audit_logs
+    ADD CONSTRAINT audit_logs_created_by_id_fk FOREIGN KEY (created_by_id) REFERENCES public.admin_users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: audit_logs audit_logs_updated_by_id_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.audit_logs
+    ADD CONSTRAINT audit_logs_updated_by_id_fk FOREIGN KEY (updated_by_id) REFERENCES public.admin_users(id) ON DELETE SET NULL;
 
 
 --

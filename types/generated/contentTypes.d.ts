@@ -760,6 +760,39 @@ export interface ApiAppleReceiptAppleReceipt extends Schema.CollectionType {
   };
 }
 
+export interface ApiAuditLogAuditLog extends Schema.CollectionType {
+  collectionName: 'audit_logs';
+  info: {
+    singularName: 'audit-log';
+    pluralName: 'audit-logs';
+    displayName: 'audit log';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    event: Attribute.String;
+    status: Attribute.Enumeration<['SUCCESS', 'FAILURE', 'WARNING', 'INFO']> &
+      Attribute.Required;
+    message: Attribute.String;
+    details: Attribute.JSON;
+    createdAt: Attribute.DateTime;
+    updatedAt: Attribute.DateTime;
+    createdBy: Attribute.Relation<
+      'api::audit-log.audit-log',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    updatedBy: Attribute.Relation<
+      'api::audit-log.audit-log',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+  };
+}
+
 export interface ApiEntitlementEntitlement extends Schema.CollectionType {
   collectionName: 'entitlements';
   info: {
@@ -1139,6 +1172,7 @@ declare module '@strapi/types' {
       'plugin::users-permissions.user': PluginUsersPermissionsUser;
       'api::apple-notification.apple-notification': ApiAppleNotificationAppleNotification;
       'api::apple-receipt.apple-receipt': ApiAppleReceiptAppleReceipt;
+      'api::audit-log.audit-log': ApiAuditLogAuditLog;
       'api::entitlement.entitlement': ApiEntitlementEntitlement;
       'api::feature.feature': ApiFeatureFeature;
       'api::ping.ping': ApiPingPing;

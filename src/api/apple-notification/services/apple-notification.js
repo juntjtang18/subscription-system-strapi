@@ -6,13 +6,7 @@ const { verifyAppleJWS } = require("../../../utils/apple-jws-verifier"); // Impo
 
 module.exports = ({ strapi }) => ({
   async processNotification(requestBody) {
-    logger.info(
-      `[Apple Webhook SVC] RAW PAYLOAD RECEIVED: ${JSON.stringify(
-        requestBody,
-        null,
-        2
-      )}`
-    );
+    logger.info(      `[Apple Webhook SVC] RAW PAYLOAD RECEIVED: ${JSON.stringify(        requestBody,        null,        2      )}`    );
 
     if (!requestBody || !requestBody.signedPayload) {
       throw new Error("Request body or signedPayload is missing.");
@@ -25,13 +19,7 @@ module.exports = ({ strapi }) => ({
       const decodedPayload = await verifyAppleJWS(signedPayload); // Use the verifier
 
       // ✨ NEW: Log the decoded main payload
-      logger.info(
-        `[Apple Webhook SVC] Decoded Main Payload: ${JSON.stringify(
-          decodedPayload,
-          null,
-          2
-        )}`
-      );
+      logger.info(        `[Apple Webhook SVC] Decoded Main Payload: ${JSON.stringify(          decodedPayload,          null,          2        )}`            );
 
       const existingLogs = await strapi.entityService.findMany(
         "api::apple-notification.apple-notification",
