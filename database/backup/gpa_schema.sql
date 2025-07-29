@@ -365,6 +365,41 @@ CREATE TABLE public.audit_logs (
 ALTER TABLE public.audit_logs OWNER TO strapi;
 
 --
+-- Name: audit_logs_apple_notification_links; Type: TABLE; Schema: public; Owner: strapi
+--
+
+CREATE TABLE public.audit_logs_apple_notification_links (
+    id integer NOT NULL,
+    audit_log_id integer,
+    apple_notification_id integer
+);
+
+
+ALTER TABLE public.audit_logs_apple_notification_links OWNER TO strapi;
+
+--
+-- Name: audit_logs_apple_notification_links_id_seq; Type: SEQUENCE; Schema: public; Owner: strapi
+--
+
+CREATE SEQUENCE public.audit_logs_apple_notification_links_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.audit_logs_apple_notification_links_id_seq OWNER TO strapi;
+
+--
+-- Name: audit_logs_apple_notification_links_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: strapi
+--
+
+ALTER SEQUENCE public.audit_logs_apple_notification_links_id_seq OWNED BY public.audit_logs_apple_notification_links.id;
+
+
+--
 -- Name: audit_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: strapi
 --
 
@@ -1878,6 +1913,13 @@ ALTER TABLE ONLY public.audit_logs ALTER COLUMN id SET DEFAULT nextval('public.a
 
 
 --
+-- Name: audit_logs_apple_notification_links id; Type: DEFAULT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.audit_logs_apple_notification_links ALTER COLUMN id SET DEFAULT nextval('public.audit_logs_apple_notification_links_id_seq'::regclass);
+
+
+--
 -- Name: components_a_features id; Type: DEFAULT; Schema: public; Owner: strapi
 --
 
@@ -2222,6 +2264,22 @@ ALTER TABLE ONLY public.apple_notifications_subscription_links
 
 ALTER TABLE ONLY public.apple_receipts
     ADD CONSTRAINT apple_receipts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: audit_logs_apple_notification_links audit_logs_apple_notification_links_pkey; Type: CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.audit_logs_apple_notification_links
+    ADD CONSTRAINT audit_logs_apple_notification_links_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: audit_logs_apple_notification_links audit_logs_apple_notification_links_unique; Type: CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.audit_logs_apple_notification_links
+    ADD CONSTRAINT audit_logs_apple_notification_links_unique UNIQUE (audit_log_id, apple_notification_id);
 
 
 --
@@ -2802,6 +2860,20 @@ CREATE INDEX apple_receipts_created_by_id_fk ON public.apple_receipts USING btre
 --
 
 CREATE INDEX apple_receipts_updated_by_id_fk ON public.apple_receipts USING btree (updated_by_id);
+
+
+--
+-- Name: audit_logs_apple_notification_links_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX audit_logs_apple_notification_links_fk ON public.audit_logs_apple_notification_links USING btree (audit_log_id);
+
+
+--
+-- Name: audit_logs_apple_notification_links_inv_fk; Type: INDEX; Schema: public; Owner: strapi
+--
+
+CREATE INDEX audit_logs_apple_notification_links_inv_fk ON public.audit_logs_apple_notification_links USING btree (apple_notification_id);
 
 
 --
@@ -3546,6 +3618,22 @@ ALTER TABLE ONLY public.apple_receipts
 
 ALTER TABLE ONLY public.apple_receipts
     ADD CONSTRAINT apple_receipts_updated_by_id_fk FOREIGN KEY (updated_by_id) REFERENCES public.admin_users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: audit_logs_apple_notification_links audit_logs_apple_notification_links_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.audit_logs_apple_notification_links
+    ADD CONSTRAINT audit_logs_apple_notification_links_fk FOREIGN KEY (audit_log_id) REFERENCES public.audit_logs(id) ON DELETE CASCADE;
+
+
+--
+-- Name: audit_logs_apple_notification_links audit_logs_apple_notification_links_inv_fk; Type: FK CONSTRAINT; Schema: public; Owner: strapi
+--
+
+ALTER TABLE ONLY public.audit_logs_apple_notification_links
+    ADD CONSTRAINT audit_logs_apple_notification_links_inv_fk FOREIGN KEY (apple_notification_id) REFERENCES public.apple_notifications(id) ON DELETE CASCADE;
 
 
 --

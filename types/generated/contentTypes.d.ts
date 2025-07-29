@@ -706,6 +706,11 @@ export interface ApiAppleNotificationAppleNotification
       'manyToOne',
       'api::subscription.subscription'
     >;
+    audit_log: Attribute.Relation<
+      'api::apple-notification.apple-notification',
+      'oneToOne',
+      'api::audit-log.audit-log'
+    >;
     createdAt: Attribute.DateTime;
     updatedAt: Attribute.DateTime;
     createdBy: Attribute.Relation<
@@ -778,6 +783,11 @@ export interface ApiAuditLogAuditLog extends Schema.CollectionType {
     message: Attribute.String;
     details: Attribute.JSON;
     strapiUserId: Attribute.Integer;
+    apple_notification: Attribute.Relation<
+      'api::audit-log.audit-log',
+      'oneToOne',
+      'api::apple-notification.apple-notification'
+    >;
     createdAt: Attribute.DateTime;
     updatedAt: Attribute.DateTime;
     createdBy: Attribute.Relation<

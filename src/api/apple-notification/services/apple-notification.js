@@ -1,6 +1,15 @@
 "use strict";
 
-const { AppStoreServerAPI } = require("@apple/app-store-server-library");
+const fs = require("fs");
+const path = require("path");
+
+// CORRECTED: Import all necessary classes from the library
+const {
+  AppStoreServerAPIClient,
+  SignedDataVerifier,
+  Environment,
+} = require("@apple/app-store-server-library");
+
 const {
   APPLE_APP_BUNDLE_ID,
   APPLE_APP_STORE_ISSUER_ID,
@@ -11,17 +20,51 @@ const logger = require("../../../utils/logger");
 const auditLog = require("../../../utils/audit-log");
 const notificationHandlers = require("../../../utils/apple-notification-handlers");
 
+// Helper function to load the Apple Root CA certificate from your project files
+const loadAppleRootCAs = () => {
+  try {
+    // IMPORTANT: Make sure this path is correct for your project structure.
+    const certPath = path.resolve(
+      process.cwd(),
+      "src/config/certs/AppleRootCA-G3.cer"
+    );
+    return [fs.readFileSync(certPath)];
+  } catch (error) {
+    logger.error(
+      "FATAL: Could not load Apple Root CA certificate. Please ensure 'src/config/certs/AppleRootCA-G3.cer' exists.",
+      error
+    );
+    // Stop the process if the cert can't be loaded, as verification is impossible.
+    process.exit(1);
+  }
+};
+
+const appleRootCAs = loadAppleRootCAs();
+
 module.exports = ({ strapi }) => ({
   /**
    * Main processing function for all incoming Apple notifications.
    */
   async processNotification(body) {
-    const api = new AppStoreServerAPI(
-      APPLE_APP_STORE_PRIVATE_KEY,
-      APPLE_APP_STORE_KEY_ID,
-      APPLE_APP_STORE_ISSUER_ID,
+    // IMPORTANT: Change Environment.SANDBOX to Environment.PRODUCTION when you go live.
+    const environment = Environment.SANDBOX;
+
+    // The verifier is now a separate class for decoding and verifying payloads.
+    const verifier = new SignedDataVerifier(
+      appleRootCAs,
+      true, // enable online checks
+      environment,
       APPLE_APP_BUNDLE_ID
     );
+    
+    // The client is used for making other API calls (not needed in this function but good practice to have)
+    const client = new AppStoreServerAPIClient(
+        APPLE_APP_STORE_PRIVATE_KEY,
+        APPLE_APP_STORE_KEY_ID,
+        APPLE_APP_STORE_ISSUER_ID,
+        APPLE_APP_BUNDLE_ID,
+        environment
+      );
 
     let notificationDetails = {
       uuid: null,
@@ -31,16 +74,17 @@ module.exports = ({ strapi }) => ({
     };
 
     try {
-      const verificationResult = await api.verifyAndDecodeNotification(
+      // CORRECTED: Use the verifier instance to decode the notification
+      const jwsPayload = await verifier.verifyAndDecodeNotification(
         body.signedPayload
       );
-      const jwsPayload = verificationResult;
 
       notificationDetails.uuid = jwsPayload.notificationUUID;
       notificationDetails.type = jwsPayload.notificationType;
       notificationDetails.subtype = jwsPayload.subtype;
 
-      const transactionInfo = await api.decodeTransaction(
+      // CORRECTED: Use the verifier instance to decode the transaction info
+      const transactionInfo = await verifier.verifyAndDecodeTransaction(
         jwsPayload.data.signedTransactionInfo
       );
       notificationDetails.originalTransactionId =
@@ -58,11 +102,9 @@ module.exports = ({ strapi }) => ({
           },
         });
 
-      // Find the correct handler based on the notification type
       const handler = notificationHandlers[notificationDetails.type];
 
       if (handler) {
-        // Call the handler with all the necessary context
         await handler({
           strapi,
           subscription,
@@ -70,7 +112,6 @@ module.exports = ({ strapi }) => ({
           notificationDetails,
         });
       } else {
-        // If no handler exists, log it as a warning
         logger.warn(
           `[Apple Webhook SVC] No handler found for notification type: ${notificationDetails.type}`
         );
@@ -83,7 +124,7 @@ module.exports = ({ strapi }) => ({
         });
       }
     } catch (error) {
-      // The entire catch block remains the same as before
+      // The catch block remains correct.
       let failureReason = error.message;
       let eventType = "APPLE_NOTIFICATION_FAILURE";
 

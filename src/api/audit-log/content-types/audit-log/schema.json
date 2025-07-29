@@ -33,6 +33,12 @@
     },
     "strapiUserId": {
       "type": "integer"
+    },
+    "apple_notification": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::apple-notification.apple-notification",
+      "inversedBy": "audit_log"
     }
   }
 }

@@ -298,3 +298,7 @@ curl -X POST "http://localhost:2337/api/apple-notifications" \
 sandbox tester:
 test3 tester
 test3@gpai.ca / Passw0rd@gpai
+
+
+subscription 117 81 07/02/2025 17:25
+notification 74

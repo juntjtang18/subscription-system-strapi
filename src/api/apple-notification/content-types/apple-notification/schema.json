@@ -48,6 +48,12 @@
       "relation": "manyToOne",
       "target": "api::subscription.subscription",
       "inversedBy": "apple_notifications"
+    },
+    "audit_log": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::audit-log.audit-log",
+      "mappedBy": "apple_notification"
     }
   }
 }
