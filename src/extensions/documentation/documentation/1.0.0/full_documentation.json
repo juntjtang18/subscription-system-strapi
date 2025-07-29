@@ -14,7 +14,7 @@
       "name": "Apache 2.0",
       "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
     },
-    "x-generation-date": "2025-07-29T15:22:17.392Z"
+    "x-generation-date": "2025-07-29T16:27:19.597Z"
   },
   "x-strapi-config": {
     "auth": false,
@@ -117,7 +117,8 @@
                   "received",
                   "processed",
                   "failed_verification",
-                  "failed_not_found"
+                  "failed_not_found",
+                  "duplicate"
                 ]
               },
               "rawSignedPayload": {
@@ -220,7 +221,8 @@
               "received",
               "processed",
               "failed_verification",
-              "failed_not_found"
+              "failed_not_found",
+              "duplicate"
             ]
           },
           "rawSignedPayload": {
@@ -1088,7 +1090,8 @@
                                         "received",
                                         "processed",
                                         "failed_verification",
-                                        "failed_not_found"
+                                        "failed_not_found",
+                                        "duplicate"
                                       ]
                                     },
                                     "rawSignedPayload": {
@@ -1976,7 +1979,8 @@
                           "received",
                           "processed",
                           "failed_verification",
-                          "failed_not_found"
+                          "failed_not_found",
+                          "duplicate"
                         ]
                       },
                       "rawSignedPayload": {
@@ -3471,7 +3475,8 @@
                                                                                               "received",
                                                                                               "processed",
                                                                                               "failed_verification",
-                                                                                              "failed_not_found"
+                                                                                              "failed_not_found",
+                                                                                              "duplicate"
                                                                                             ]
                                                                                           },
                                                                                           "rawSignedPayload": {
@@ -4775,7 +4780,8 @@
                                                         "received",
                                                         "processed",
                                                         "failed_verification",
-                                                        "failed_not_found"
+                                                        "failed_not_found",
+                                                        "duplicate"
                                                       ]
                                                     },
                                                     "rawSignedPayload": {
@@ -6691,7 +6697,8 @@
                                                       "received",
                                                       "processed",
                                                       "failed_verification",
-                                                      "failed_not_found"
+                                                      "failed_not_found",
+                                                      "duplicate"
                                                     ]
                                                   },
                                                   "rawSignedPayload": {
@@ -8046,7 +8053,8 @@
                                                       "received",
                                                       "processed",
                                                       "failed_verification",
-                                                      "failed_not_found"
+                                                      "failed_not_found",
+                                                      "duplicate"
                                                     ]
                                                   },
                                                   "rawSignedPayload": {
@@ -9350,7 +9358,8 @@
                                                       "received",
                                                       "processed",
                                                       "failed_verification",
-                                                      "failed_not_found"
+                                                      "failed_not_found",
+                                                      "duplicate"
                                                     ]
                                                   },
                                                   "rawSignedPayload": {
@@ -11040,7 +11049,8 @@
                                                                                 "received",
                                                                                 "processed",
                                                                                 "failed_verification",
-                                                                                "failed_not_found"
+                                                                                "failed_not_found",
+                                                                                "duplicate"
                                                                               ]
                                                                             },
                                                                             "rawSignedPayload": {

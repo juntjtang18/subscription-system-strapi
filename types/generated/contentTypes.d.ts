@@ -695,7 +695,13 @@ export interface ApiAppleNotificationAppleNotification
     subtype: Attribute.String;
     originalTransactionId: Attribute.String;
     processingStatus: Attribute.Enumeration<
-      ['received', 'processed', 'failed_verification', 'failed_not_found']
+      [
+        'received',
+        'processed',
+        'failed_verification',
+        'failed_not_found',
+        'duplicate'
+      ]
     > &
       Attribute.Required &
       Attribute.DefaultTo<'received'>;

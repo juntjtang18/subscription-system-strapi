@@ -32,7 +32,8 @@
         "received",
         "processed",
         "failed_verification",
-        "failed_not_found"
+        "failed_not_found",
+        "duplicate"
       ],
       "default": "received",
       "required": true

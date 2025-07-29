@@ -1,94 +1,108 @@
 "use strict";
 
-const fs = require("fs");
-const path = require("path");
-
-// CORRECTED: Import all necessary classes from the library
-const {
-  AppStoreServerAPIClient,
-  SignedDataVerifier,
-  Environment,
-} = require("@apple/app-store-server-library");
-
-const {
-  APPLE_APP_BUNDLE_ID,
-  APPLE_APP_STORE_ISSUER_ID,
-  APPLE_APP_STORE_KEY_ID,
-  APPLE_APP_STORE_PRIVATE_KEY,
-} = process.env;
+const jose = require("node-jose");
 const logger = require("../../../utils/logger");
 const auditLog = require("../../../utils/audit-log");
 const notificationHandlers = require("../../../utils/apple-notification-handlers");
 
-// Helper function to load the Apple Root CA certificate from your project files
-const loadAppleRootCAs = () => {
-  try {
-    // IMPORTANT: Make sure this path is correct for your project structure.
-    const certPath = path.resolve(
-      process.cwd(),
-      "src/config/certs/AppleRootCA-G3.cer"
-    );
-    return [fs.readFileSync(certPath)];
-  } catch (error) {
-    logger.error(
-      "FATAL: Could not load Apple Root CA certificate. Please ensure 'src/config/certs/AppleRootCA-G3.cer' exists.",
-      error
-    );
-    // Stop the process if the cert can't be loaded, as verification is impossible.
-    process.exit(1);
-  }
-};
-
-const appleRootCAs = loadAppleRootCAs();
-
 module.exports = ({ strapi }) => ({
   /**
-   * Main processing function for all incoming Apple notifications.
+   * Processes an incoming Apple Server Notification using the node-jose library for JWS verification.
+   * @param {object} body The raw request body from Apple containing the signedPayload.
    */
   async processNotification(body) {
-    // IMPORTANT: Change Environment.SANDBOX to Environment.PRODUCTION when you go live.
-    const environment = Environment.SANDBOX;
+    let notificationEntry;
 
-    // The verifier is now a separate class for decoding and verifying payloads.
-    const verifier = new SignedDataVerifier(
-      appleRootCAs,
-      true, // enable online checks
-      environment,
-      APPLE_APP_BUNDLE_ID
-    );
-    
-    // The client is used for making other API calls (not needed in this function but good practice to have)
-    const client = new AppStoreServerAPIClient(
-        APPLE_APP_STORE_PRIVATE_KEY,
-        APPLE_APP_STORE_KEY_ID,
-        APPLE_APP_STORE_ISSUER_ID,
-        APPLE_APP_BUNDLE_ID,
-        environment
+    // 1. EARLY PERSISTENCE: Save the raw payload immediately.
+    try {
+      notificationEntry = await strapi.entityService.create(
+        "api::apple-notification.apple-notification",
+        {
+          data: {
+            rawSignedPayload: body.signedPayload,
+            processingStatus: "received",
+            publishedAt: new Date(),
+          },
+        }
       );
-
-    let notificationDetails = {
-      uuid: null,
-      type: null,
-      subtype: null,
-      originalTransactionId: null,
-    };
+    } catch (dbError) {
+      logger.error(
+        "CRITICAL: Failed to persist preliminary notification record.",
+        { error: dbError }
+      );
+      throw dbError;
+    }
 
     try {
-      // CORRECTED: Use the verifier instance to decode the notification
-      const jwsPayload = await verifier.verifyAndDecodeNotification(
-        body.signedPayload
+      // 2. DECODE PAYLOAD
+      const jwsPayload = await this.verifyAppleJWS(body.signedPayload);
+
+      // **THE FIX IS HERE:** Create a clean object for logging.
+      // We destructure the payload to separate the 'data' field (which has the long string)
+      // from the rest of the readable fields.
+      const { data, ...loggablePayload } = jwsPayload;
+      logger.info(
+        `[Apple Webhook SVC] Decoded Payload (UUID: ${jwsPayload.notificationUUID}):`,
+        loggablePayload // Log only the clean, readable part.
       );
 
-      notificationDetails.uuid = jwsPayload.notificationUUID;
-      notificationDetails.type = jwsPayload.notificationType;
-      notificationDetails.subtype = jwsPayload.subtype;
+      // Check for duplicate notifications.
+      const existingLogs = await strapi.db
+        .query("api::apple-notification.apple-notification")
+        .findMany({
+          filters: {
+            notificationUUID: jwsPayload.notificationUUID,
+            id: { $ne: notificationEntry.id },
+          },
+        });
 
-      // CORRECTED: Use the verifier instance to decode the transaction info
-      const transactionInfo = await verifier.verifyAndDecodeTransaction(
+      if (existingLogs && existingLogs.length > 0) {
+        logger.warn(
+          `[Apple Webhook SVC] Duplicate notification received (UUID: ${jwsPayload.notificationUUID}). Skipping.`
+        );
+        await strapi.entityService.update(
+          "api::apple-notification.apple-notification",
+          notificationEntry.id,
+          { data: { processingStatus: "duplicate" } }
+        );
+        return;
+      }
+      
+      // Update our record with the decoded top-level details.
+      await strapi.entityService.update(
+        "api::apple-notification.apple-notification",
+        notificationEntry.id,
+        {
+          data: {
+            notificationUUID: jwsPayload.notificationUUID,
+            notificationType: jwsPayload.notificationType,
+            subtype: jwsPayload.subtype,
+          },
+        }
+      );
+      
+      // Handle TEST notifications separately.
+      if (jwsPayload.notificationType === 'TEST') {
+        const handler = notificationHandlers['TEST'];
+        if (handler) {
+            await handler({ strapi, notificationDetails: { uuid: jwsPayload.notificationUUID } });
+        }
+        await strapi.entityService.update("api::apple-notification.apple-notification", notificationEntry.id, {
+            data: { processingStatus: "processed" },
+        });
+        return;
+      }
+
+      const transactionInfo = await this.verifyAppleJWS(
         jwsPayload.data.signedTransactionInfo
       );
-      notificationDetails.originalTransactionId =
-        transactionInfo.originalTransactionId;
+
+      const notificationDetails = {
+        uuid: jwsPayload.notificationUUID,
+        type: jwsPayload.notificationType,
+        subtype: jwsPayload.subtype,
+        originalTransactionId: transactionInfo.originalTransactionId,
+      };
 
       logger.info(
         `[Apple Webhook SVC] Routing notification: ${notificationDetails.type}`
@@ -103,7 +117,6 @@ module.exports = ({ strapi }) => ({
         });
 
       const handler = notificationHandlers[notificationDetails.type];
-
       if (handler) {
         await handler({
           strapi,
@@ -113,61 +126,64 @@ module.exports = ({ strapi }) => ({
         });
       } else {
         logger.warn(
-          `[Apple Webhook SVC] No handler found for notification type: ${notificationDetails.type}`
+          `[Apple Webhook SVC] No handler found for type: ${notificationDetails.type}`
         );
-        await auditLog({ strapi }).record({
-          event: "UNHANDLED_NOTIFICATION_TYPE",
-          status: "WARNING",
-          message: `Received notification type '${notificationDetails.type}' for which no handler is defined.`,
-          strapiUserId: subscription ? subscription.strapiUserId : null,
-          details: notificationDetails,
-        });
       }
+      
+      await strapi.entityService.update("api::apple-notification.apple-notification", notificationEntry.id, {
+        data: { processingStatus: "processed" },
+      });
+
     } catch (error) {
-      // The catch block remains correct.
-      let failureReason = error.message;
-      let eventType = "APPLE_NOTIFICATION_FAILURE";
-
-      if (
-        !failureReason.includes("data inconsistency") &&
-        !failureReason.includes("appAccountToken")
-      ) {
-        if (error.message.includes("JWS")) {
-          failureReason =
-            "The notification payload from Apple could not be verified.";
-          eventType = "APPLE_NOTIFICATION_VERIFICATION_FAILURE";
-        } else {
-          failureReason = "An unexpected error occurred during processing.";
+      logger.error(
+        "[Apple Webhook SVC] An error occurred during notification processing.",
+        {
+          error: { message: error.message, stack: error.stack },
+          notificationId: notificationEntry.id,
         }
+      );
 
-        logger.error(`[Apple Webhook SVC] ${failureReason}`, {
-          error: error.message,
-          details: notificationDetails,
-        });
+      await strapi.entityService.update(
+        "api::apple-notification.apple-notification",
+        notificationEntry.id,
+        {
+          data: { processingStatus: "failed_verification" },
+        }
+      );
 
-        const subForErrorLog = await strapi.db
-          .query("api::subscription.subscription")
-          .findOne({
-            where: {
-              originalTransactionId: notificationDetails.originalTransactionId,
-            },
-          });
-
-        await auditLog({ strapi }).record({
-          event: eventType,
-          status: "FAILURE",
-          message: `${
-            failureReason
-          } The notification type was '${notificationDetails.type || "Unknown"}'.`,
-          strapiUserId: subForErrorLog ? subForErrorLog.strapiUserId : null,
-          details: {
-            ...notificationDetails,
-            errorMessage: error.message,
-          },
-        });
-      }
+      await auditLog({ strapi }).record({
+        event: "NOTIFICATION_PROCESSING_FAILURE",
+        status: "FAILURE",
+        message: `Processing failed with error: ${error.message}`,
+        details: { errorMessage: error.stack },
+        apple_notification: notificationEntry.id,
+      });
 
       throw error;
+    }
+  },
+
+  /**
+   * Verifies and decodes a JWS token from Apple using the node-jose library.
+   * @param {string} token The JWS token string.
+   * @returns {object} The decoded payload.
+   */
+  async verifyAppleJWS(token) {
+    try {
+      const headerB64 = token.split(".")[0];
+      const header = JSON.parse(
+        Buffer.from(headerB64, "base64url").toString("utf8")
+      );
+      const certPem = `-----BEGIN CERTIFICATE-----\n${header.x5c[0]}\n-----END CERTIFICATE-----`;
+      const key = await jose.JWK.asKey(certPem, "pem");
+      const verifier = jose.JWS.createVerify(key);
+      const result = await verifier.verify(token);
+      return JSON.parse(result.payload.toString());
+    } catch (error) {
+      logger.error(
+        `[Apple Webhook SVC] JWS verification failed with node-jose: ${error.message}`
+      );
+      throw new Error(`JWS verification failed.`);
     }
   },
 });
