@@ -30,6 +30,7 @@ module.exports = ({ strapi }) => ({
     }
 
     try {
+      // 2. JWS VERIFICATION
       const jwsPayload = await this.verifyAppleJWS(body.signedPayload);
       const { data, ...loggablePayload } = jwsPayload;
       logger.info(
@@ -37,6 +38,7 @@ module.exports = ({ strapi }) => ({
         loggablePayload
       );
 
+      // check UUID duplication
       const existingLogs = await strapi.entityService.findMany("api::apple-notification.apple-notification", {
         filters: {
           notificationUUID: jwsPayload.notificationUUID,
@@ -57,19 +59,19 @@ module.exports = ({ strapi }) => ({
         return;
       }
       
-      await strapi.entityService.update(
-        "api::apple-notification.apple-notification",
-        notificationEntry.id,
-        {
-          data: {
-            notificationUUID: jwsPayload.notificationUUID,
-            notificationType: jwsPayload.notificationType,
-            subtype: jwsPayload.subtype,
-          },
-        }
-      );
-      
       if (jwsPayload.notificationType === 'TEST') {
+        // For TEST notifications, update and process without transaction info
+        await strapi.entityService.update(
+            "api::apple-notification.apple-notification",
+            notificationEntry.id,
+            {
+              data: {
+                notificationUUID: jwsPayload.notificationUUID,
+                notificationType: jwsPayload.notificationType,
+                subtype: jwsPayload.subtype,
+              },
+            }
+        );
         const handler = notificationHandlers['TEST'];
         if (handler) {
             await handler({ strapi, notificationId: notificationEntry.id, notificationDetails: { uuid: jwsPayload.notificationUUID } });
@@ -82,6 +84,20 @@ module.exports = ({ strapi }) => ({
 
       const transactionInfo = await this.verifyAppleJWS(
         jwsPayload.data.signedTransactionInfo
+      );
+
+      // 2. EARLY UPDATE with transactionInfo
+      await strapi.entityService.update(
+        "api::apple-notification.apple-notification",
+        notificationEntry.id,
+        {
+          data: {
+            notificationUUID: jwsPayload.notificationUUID,
+            notificationType: jwsPayload.notificationType,
+            subtype: jwsPayload.subtype,
+            transactionInfo: transactionInfo, // Persist the full decoded transaction info
+          },
+        }
       );
 
       const notificationDetails = {
@@ -123,9 +139,16 @@ module.exports = ({ strapi }) => ({
         );
       }
       
+      // --- Change Start ---
+      // Final update now includes the subscription relation and originalTransactionId
       await strapi.entityService.update("api::apple-notification.apple-notification", notificationEntry.id, {
-        data: { processingStatus: "processed" },
+        data: { 
+          processingStatus: "processed",
+          originalTransactionId: transactionInfo.originalTransactionId,
+          subscription: subscription ? subscription.id : null,
+        },
       });
+      // --- Change End ---
 
     } catch (error) {
       logger.error(
