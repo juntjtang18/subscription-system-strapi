@@ -9,7 +9,7 @@ module.exports = ({ strapi }) => ({
   async processNotification(body) {
     let notificationEntry;
 
-    // 1. EARLY PERSISTENCE
+    // 1. EARLY PERSISTENCE: Create the record, this is the first and only 'create' call.
     try {
       notificationEntry = await strapi.entityService.create(
         "api::apple-notification.apple-notification",
@@ -30,7 +30,6 @@ module.exports = ({ strapi }) => ({
     }
 
     try {
-      // 2. JWS VERIFICATION
       const jwsPayload = await this.verifyAppleJWS(body.signedPayload);
       const { data, ...loggablePayload } = jwsPayload;
       logger.info(
@@ -38,14 +37,13 @@ module.exports = ({ strapi }) => ({
         loggablePayload
       );
 
-      // check UUID duplication
+      // DUPLICATE CHECK: This is an early exit, so a single update here is acceptable.
       const existingLogs = await strapi.entityService.findMany("api::apple-notification.apple-notification", {
         filters: {
           notificationUUID: jwsPayload.notificationUUID,
           id: { $ne: notificationEntry.id },
         },
       });
-
 
       if (existingLogs && existingLogs.length > 0) {
         logger.warn(
@@ -54,51 +52,37 @@ module.exports = ({ strapi }) => ({
         await strapi.entityService.update(
           "api::apple-notification.apple-notification",
           notificationEntry.id,
-          { data: { processingStatus: "duplicate" } }
+          { data: { processingStatus: "duplicate", notificationUUID: jwsPayload.notificationUUID } }
         );
         return;
       }
       
+      // --- Optimization Start ---
+      // We will build this object and use it for a single update at the end.
+      const notificationUpdateData = {
+          notificationUUID: jwsPayload.notificationUUID,
+          notificationType: jwsPayload.notificationType,
+          subtype: jwsPayload.subtype,
+      };
+      // --- Optimization End ---
+      
       if (jwsPayload.notificationType === 'TEST') {
-        // For TEST notifications, update and process without transaction info
-        await strapi.entityService.update(
-            "api::apple-notification.apple-notification",
-            notificationEntry.id,
-            {
-              data: {
-                notificationUUID: jwsPayload.notificationUUID,
-                notificationType: jwsPayload.notificationType,
-                subtype: jwsPayload.subtype,
-              },
-            }
-        );
         const handler = notificationHandlers['TEST'];
         if (handler) {
             await handler({ strapi, notificationId: notificationEntry.id, notificationDetails: { uuid: jwsPayload.notificationUUID } });
         }
-        await strapi.entityService.update("api::apple-notification.apple-notification", notificationEntry.id, {
-            data: { processingStatus: "processed" },
-        });
+        notificationUpdateData.processingStatus = "processed";
+        await strapi.entityService.update("api::apple-notification.apple-notification", notificationEntry.id, { data: notificationUpdateData });
         return;
       }
 
       const transactionInfo = await this.verifyAppleJWS(
         jwsPayload.data.signedTransactionInfo
       );
-
-      // 2. EARLY UPDATE with transactionInfo
-      await strapi.entityService.update(
-        "api::apple-notification.apple-notification",
-        notificationEntry.id,
-        {
-          data: {
-            notificationUUID: jwsPayload.notificationUUID,
-            notificationType: jwsPayload.notificationType,
-            subtype: jwsPayload.subtype,
-            transactionInfo: transactionInfo, // Persist the full decoded transaction info
-          },
-        }
-      );
+      
+      // Add more data to our update object
+      notificationUpdateData.transactionInfo = transactionInfo;
+      notificationUpdateData.originalTransactionId = transactionInfo.originalTransactionId;
 
       const notificationDetails = {
         uuid: jwsPayload.notificationUUID,
@@ -115,14 +99,15 @@ module.exports = ({ strapi }) => ({
         });
 
       let subscription = subscriptions.find(s => s.status === 'active') || subscriptions[0];
+      
+      // Add the final piece of data to our update object
+      notificationUpdateData.subscription = subscription ? subscription.id : null;
 
-      // --- Debug Logging Start ---
       if (subscription) {
         logger.info(`[Apple Webhook SVC] Found subscription with ID: ${subscription.id} for notification UUID: ${notificationDetails.uuid}`);
       } else {
         logger.warn(`[Apple Webhook SVC] No subscription found for originalTransactionId: ${transactionInfo.originalTransactionId}. A new one may be created by the handler.`);
       }
-      // --- Debug Logging End ---
 
       const handler = notificationHandlers[notificationDetails.type];
       if (handler) {
@@ -139,16 +124,13 @@ module.exports = ({ strapi }) => ({
         );
       }
       
-      // --- Change Start ---
-      // Final update now includes the subscription relation and originalTransactionId
+      // --- Optimization Start ---
+      // Perform the SINGLE, FINAL update for the entire successful process.
+      notificationUpdateData.processingStatus = "processed";
       await strapi.entityService.update("api::apple-notification.apple-notification", notificationEntry.id, {
-        data: { 
-          processingStatus: "processed",
-          originalTransactionId: transactionInfo.originalTransactionId,
-          subscription: subscription ? subscription.id : null,
-        },
+        data: notificationUpdateData,
       });
-      // --- Change End ---
+      // --- Optimization End ---
 
     } catch (error) {
       logger.error(
@@ -159,11 +141,12 @@ module.exports = ({ strapi }) => ({
         }
       );
 
+      // A single update in the catch block is also efficient.
       await strapi.entityService.update(
         "api::apple-notification.apple-notification",
         notificationEntry.id,
         {
-          data: { processingStatus: "failed_verification" },
+          data: { processingStatus: "failed" },
         }
       );
 
@@ -190,11 +173,11 @@ module.exports = ({ strapi }) => ({
       const verifier = jose.JWS.createVerify(key);
       const result = await verifier.verify(token);
       return JSON.parse(result.payload.toString());
-    } catch (error) {
-      logger.error(
-        `[Apple Webhook SVC] JWS verification failed with node-jose: ${error.message}`
-      );
-      throw new Error(`JWS verification failed.`);
-    }
-  },
+    } catch (error)      {
+        logger.error(
+            `[Apple Webhook SVC] JWS verification failed with node-jose: ${error.message}`
+        );
+        throw new Error(`JWS verification failed.`);
+        }
+    },
 });
