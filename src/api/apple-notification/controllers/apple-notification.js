@@ -28,4 +28,23 @@ module.exports = createCoreController("api::apple-notification.apple-notificatio
         ctx.send({ error: "Failed to process notification" }, 500);
       }
     },
+      // --- Add this new handler for testing ---
+    async testEvent(ctx) {
+        try {
+            const { notificationType, transactionInfo } = ctx.request.body;
+
+            if (!notificationType || !transactionInfo) {
+                return ctx.badRequest('Request body must include notificationType and transactionInfo');
+            }
+
+            const result = await strapi
+                .service('api::apple-notification.apple-notification')
+                .processTestEvent({ notificationType, transactionInfo });
+            ctx.send(result);
+            
+        } catch (error) {
+            strapi.log.error(`Apple Test Event Error: ${error.message}`);
+            return ctx.badRequest(error.message);
+        }
+    },
 }));
