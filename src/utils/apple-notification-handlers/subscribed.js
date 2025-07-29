@@ -8,67 +8,55 @@ module.exports = async ({
   subscription,
   transactionInfo,
   notificationDetails,
+  notificationId,
 }) => {
   const { appAccountToken, originalTransactionId, productId, expiresDate } =
     transactionInfo;
 
+  // The correct, new expiration date from Apple.
+  const correctExpiresDate = new Date(expiresDate);
   const strapiUserId = appAccountToken ? parseInt(appAccountToken, 10) : null;
+  logger.info(`[SUBSCRIBED Handler] Processing notification for subscription ID: ${subscription?.id} and transaction ID: ${transactionInfo.transactionId}`);
 
-  if (!strapiUserId) {
-    // ... (error handling for missing strapiUserId remains the same)
-    const message = `Cannot process SUBSCRIBED event because the appAccountToken (strapiUserId) is missing from the transaction.`;
-    logger.error(`[Apple SUBSCRIBED Handler] FATAL: ${message} - UUID: ${notificationDetails.uuid}`);
-    await auditLog({ strapi }).record({ /* ... */ });
-    throw new Error(message);
-  }
-
-  // --- Primary Path: Subscription already exists ---
   if (subscription) {
-    // ... (this logic remains the same, it just confirms/syncs the existing record)
-    logger.info(`Confirming subscription for strapiUserId: ${strapiUserId}. Sub ID: ${subscription.id}`);
-    const updatedSubscription = await strapi.entityService.update(/* ... */);
-    await auditLog({ strapi }).record({ /* ... */ });
-    return updatedSubscription;
-  }
-
-  // --- Fallback Path: Subscription does NOT exist ---
-  else {
-    logger.warn(
-      `Subscription for user ${strapiUserId} not found. Creating from notification as a fallback.`
+    logger.info(
+      `Handling SUBSCRIBED for existing subscription (ID: ${
+        subscription.id
+      }). User: ${
+        subscription.strapiUserId
+      }. New expireDate from Apple: ${correctExpiresDate.toISOString()}`
     );
 
-    // **UPDATED LOGIC TO ENSURE CONSISTENCY**
-    // Find and cancel any subscriptions that are not in a terminal state.
-    const liveStatuses = ["active", "grace-period", "billing-issue", "cancelled"];
-    const existingLiveSubs = await strapi.db
-      .query("api::subscription.subscription")
-      .findMany({
-        where: {
-          strapiUserId: strapiUserId,
-          status: { $in: liveStatuses }, // Find any "live" subscription
-        },
-      });
+    const dataToUpdate = {
+      status: "active",
+      expireDate: correctExpiresDate, // ✨ FIX: Changed 'expiresDate' to 'expireDate'
+      productId,
+    };
 
-    for (const sub of existingLiveSubs) {
-      logger.warn(
-        `Found and cancelling previous subscription ${sub.id} (status: ${sub.status}) for user ${strapiUserId} before creating new one.`
-      );
-      await strapi.entityService.update(
-        "api::subscription.subscription",
-        sub.id,
-        // We set it to 'cancelled' because its lifecycle was interrupted by a new purchase.
-        { data: { status: "cancelled" } }
-      );
-      await auditLog({ strapi }).record({
-        event: "EXISTING_SUBSCRIPTION_SUPERSEDED",
-        status: "INFO",
-        message: `Deactivated old subscription (ID: ${sub.id}, Status: ${sub.status}) due to a new purchase.`,
-        strapiUserId: strapiUserId,
-        details: { oldSubscriptionId: sub.id, ...notificationDetails },
-      });
-    }
+    await strapi.entityService.update(
+      "api::subscription.subscription",
+      subscription.id,
+      { data: dataToUpdate }
+    );
 
-    // Now, create the new subscription record.
+    // This log confirms the update command was sent.
+    logger.info(
+      `[SUCCESS] Subscription ${subscription.id} update command sent. Expires date is now set to ${correctExpiresDate.toISOString()}`
+    );
+
+    // Add the link to the apple_notification record.
+    await auditLog({ strapi }).record({
+      event: "SUBSCRIPTION_CONFIRMED_OR_REACTIVATED",
+      status: "SUCCESS",
+      message: `Subscription for plan '${productId}' was confirmed as active.`,
+      strapiUserId: subscription.strapiUserId,
+      details: notificationDetails,
+      apple_notification: notificationId,
+    });
+    return;
+
+  } else if (strapiUserId) {
+    // Fallback logic to create a subscription if one doesn't exist.
     const newSubscription = await strapi.entityService.create(
       "api::subscription.subscription",
       {
@@ -77,19 +65,35 @@ module.exports = async ({
           originalTransactionId,
           status: "active",
           productId,
-          expiresDate: new Date(expiresDate),
+          expireDate: correctExpiresDate, // ✨ FIX: Changed 'expiresDate' to 'expireDate'
           publishedAt: new Date(),
         },
       }
     );
-
     await auditLog({ strapi }).record({
       event: "SUBSCRIPTION_CREATED_BY_FALLBACK",
       status: "WARNING",
       message: `Subscription for plan '${productId}' was created by server notification fallback.`,
       strapiUserId: newSubscription.strapiUserId,
       details: notificationDetails,
+      apple_notification: notificationId,
     });
     return newSubscription;
+
+  } else {
+    // Logic for unlikable subscription failure.
+    const message = `Cannot process SUBSCRIBED event: No appAccountToken (strapiUserId) was provided, and no existing subscription was found for this originalTransactionId.`;
+    logger.error(
+      `[Apple SUBSCRIBED Handler] FATAL: ${message} - UUID: ${notificationDetails.uuid}`
+    );
+    await auditLog({ strapi }).record({
+      event: "SUBSCRIBED_FAILURE_UNLINKABLE",
+      status: "FAILURE",
+      message,
+      details: notificationDetails,
+      strapiUserId: null,
+      apple_notification: notificationId,
+    });
+    throw new Error(message);
   }
 };

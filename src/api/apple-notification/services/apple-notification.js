@@ -6,14 +6,10 @@ const auditLog = require("../../../utils/audit-log");
 const notificationHandlers = require("../../../utils/apple-notification-handlers");
 
 module.exports = ({ strapi }) => ({
-  /**
-   * Processes an incoming Apple Server Notification using the node-jose library for JWS verification.
-   * @param {object} body The raw request body from Apple containing the signedPayload.
-   */
   async processNotification(body) {
     let notificationEntry;
 
-    // 1. EARLY PERSISTENCE: Save the raw payload immediately.
+    // 1. EARLY PERSISTENCE
     try {
       notificationEntry = await strapi.entityService.create(
         "api::apple-notification.apple-notification",
@@ -34,27 +30,20 @@ module.exports = ({ strapi }) => ({
     }
 
     try {
-      // 2. DECODE PAYLOAD
       const jwsPayload = await this.verifyAppleJWS(body.signedPayload);
-
-      // **THE FIX IS HERE:** Create a clean object for logging.
-      // We destructure the payload to separate the 'data' field (which has the long string)
-      // from the rest of the readable fields.
       const { data, ...loggablePayload } = jwsPayload;
       logger.info(
         `[Apple Webhook SVC] Decoded Payload (UUID: ${jwsPayload.notificationUUID}):`,
-        loggablePayload // Log only the clean, readable part.
+        loggablePayload
       );
 
-      // Check for duplicate notifications.
-      const existingLogs = await strapi.db
-        .query("api::apple-notification.apple-notification")
-        .findMany({
-          filters: {
-            notificationUUID: jwsPayload.notificationUUID,
-            id: { $ne: notificationEntry.id },
-          },
-        });
+      const existingLogs = await strapi.entityService.findMany("api::apple-notification.apple-notification", {
+        filters: {
+          notificationUUID: jwsPayload.notificationUUID,
+          id: { $ne: notificationEntry.id },
+        },
+      });
+
 
       if (existingLogs && existingLogs.length > 0) {
         logger.warn(
@@ -68,7 +57,6 @@ module.exports = ({ strapi }) => ({
         return;
       }
       
-      // Update our record with the decoded top-level details.
       await strapi.entityService.update(
         "api::apple-notification.apple-notification",
         notificationEntry.id,
@@ -81,11 +69,10 @@ module.exports = ({ strapi }) => ({
         }
       );
       
-      // Handle TEST notifications separately.
       if (jwsPayload.notificationType === 'TEST') {
         const handler = notificationHandlers['TEST'];
         if (handler) {
-            await handler({ strapi, notificationDetails: { uuid: jwsPayload.notificationUUID } });
+            await handler({ strapi, notificationId: notificationEntry.id, notificationDetails: { uuid: jwsPayload.notificationUUID } });
         }
         await strapi.entityService.update("api::apple-notification.apple-notification", notificationEntry.id, {
             data: { processingStatus: "processed" },
@@ -103,18 +90,23 @@ module.exports = ({ strapi }) => ({
         subtype: jwsPayload.subtype,
         originalTransactionId: transactionInfo.originalTransactionId,
       };
-
-      logger.info(
-        `[Apple Webhook SVC] Routing notification: ${notificationDetails.type}`
-      );
-
-      const subscription = await strapi.db
-        .query("api::subscription.subscription")
-        .findOne({
-          where: {
+      
+      const subscriptions = await strapi.entityService.findMany("api::subscription.subscription", {
+          filters: {
             originalTransactionId: transactionInfo.originalTransactionId,
           },
+          sort: { createdAt: 'desc' },
         });
+
+      let subscription = subscriptions.find(s => s.status === 'active') || subscriptions[0];
+
+      // --- Debug Logging Start ---
+      if (subscription) {
+        logger.info(`[Apple Webhook SVC] Found subscription with ID: ${subscription.id} for notification UUID: ${notificationDetails.uuid}`);
+      } else {
+        logger.warn(`[Apple Webhook SVC] No subscription found for originalTransactionId: ${transactionInfo.originalTransactionId}. A new one may be created by the handler.`);
+      }
+      // --- Debug Logging End ---
 
       const handler = notificationHandlers[notificationDetails.type];
       if (handler) {
@@ -123,6 +115,7 @@ module.exports = ({ strapi }) => ({
           subscription,
           transactionInfo,
           notificationDetails,
+          notificationId: notificationEntry.id,
         });
       } else {
         logger.warn(
@@ -163,11 +156,6 @@ module.exports = ({ strapi }) => ({
     }
   },
 
-  /**
-   * Verifies and decodes a JWS token from Apple using the node-jose library.
-   * @param {string} token The JWS token string.
-   * @returns {object} The decoded payload.
-   */
   async verifyAppleJWS(token) {
     try {
       const headerB64 = token.split(".")[0];
