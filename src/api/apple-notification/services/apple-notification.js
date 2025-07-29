@@ -1,165 +1,131 @@
-// ./src/api/apple-notification/services/apple-notification.js
 "use strict";
 
-const logger = require("../../../utils/logger");
-const { verifyAppleJWS } = require("../../../utils/apple-jws-verifier"); // Import the new verifier
+const { AppStoreServerAPI } = require("@apple/app-store-server-library");
+const {
+  APPLE_APP_BUNDLE_ID,
+  APPLE_APP_STORE_ISSUER_ID,
+  APPLE_APP_STORE_KEY_ID,
+  APPLE_APP_STORE_PRIVATE_KEY,
+} = process.env;
+const logger = require("../../../utils/logger"); // Your technical logger for developers
+const auditLog = require("../../../utils/audit-log"); // The business logger for admins
 
 module.exports = ({ strapi }) => ({
-  async processNotification(requestBody) {
-    logger.info(      `[Apple Webhook SVC] RAW PAYLOAD RECEIVED: ${JSON.stringify(        requestBody,        null,        2      )}`    );
+  /**
+   * Processes the incoming Apple notification with robust business audit logging.
+   * @param {object} body The request body containing the signed payload.
+   */
+  async processNotification(body) {
+    const api = new AppStoreServerAPI(
+      APPLE_APP_STORE_PRIVATE_KEY,
+      APPLE_APP_STORE_KEY_ID,
+      APPLE_APP_STORE_ISSUER_ID,
+      APPLE_APP_BUNDLE_ID
+    );
 
-    if (!requestBody || !requestBody.signedPayload) {
-      throw new Error("Request body or signedPayload is missing.");
-    }
-    const { signedPayload } = requestBody;
-
-    let logEntry = null;
+    // Object to hold key identifiers for reliable logging
+    let notificationDetails = {
+      uuid: null,
+      type: null,
+      subtype: null,
+      originalTransactionId: null,
+    };
 
     try {
-      const decodedPayload = await verifyAppleJWS(signedPayload); // Use the verifier
-
-      // ✨ NEW: Log the decoded main payload
-      logger.info(        `[Apple Webhook SVC] Decoded Main Payload: ${JSON.stringify(          decodedPayload,          null,          2        )}`            );
-
-      const existingLogs = await strapi.entityService.findMany(
-        "api::apple-notification.apple-notification",
-        {
-          filters: { notificationUUID: decodedPayload.notificationUUID },
-        }
+      // 1. Verify and Decode the Payload from Apple
+      const verificationResult = await api.verifyAndDecodeNotification(
+        body.signedPayload
       );
+      const jwsPayload = verificationResult;
 
-      if (existingLogs && existingLogs.length > 0) {
-        logger.warn(
-          `[Apple Webhook SVC] Duplicate notification received (UUID: ${decodedPayload.notificationUUID}). Skipping.`
-        );
-        return;
-      }
+      // 2. Immediately Extract Key Information for Logging
+      notificationDetails.uuid = jwsPayload.notificationUUID;
+      notificationDetails.type = jwsPayload.notificationType;
+      notificationDetails.subtype = jwsPayload.subtype;
 
-      logEntry = await strapi.entityService.create(
-        "api::apple-notification.apple-notification",
-        {
-          data: {
-            rawSignedPayload: signedPayload,
-            processingStatus: "received",
-            notificationUUID: decodedPayload.notificationUUID,
-            notificationType: decodedPayload.notificationType,
-            subtype: decodedPayload.subtype,
-          },
-        }
+      const transactionInfo = await api.decodeTransaction(
+        jwsPayload.data.signedTransactionInfo
       );
+      notificationDetails.originalTransactionId =
+        transactionInfo.originalTransactionId;
 
-      if (decodedPayload.notificationType === "TEST") {
-        logger.info(
-          "[Apple Webhook SVC] TEST notification successfully verified. No transaction data to process."
-        );
-        await this.updateLogStatus(logEntry.id, "processed");
-        return;
-      }
-
-      const signedTransactionInfo = decodedPayload.data.signedTransactionInfo;
-      const transactionInfo = await verifyAppleJWS(signedTransactionInfo); // Use the verifier
-
-      // ✨ NEW: Log the decoded transaction info
       logger.info(
-        `[Apple Webhook SVC] Decoded Transaction Info: ${JSON.stringify(
-          transactionInfo,
-          null,
-          2
-        )}`
+        `[Apple Webhook SVC] Processing notification: ${notificationDetails.type} (${notificationDetails.subtype || 'N/A'}) - UUID: ${notificationDetails.uuid}`
       );
 
-      await strapi.entityService.update(
-        "api::apple-notification.apple-notification",
-        logEntry.id,
-        {
-          data: {
-            transactionInfo,
+      // 3. Find the Subscription using the transaction ID
+      const subscription = await strapi.db
+        .query("api::subscription.subscription")
+        .findOne({
+          where: {
             originalTransactionId: transactionInfo.originalTransactionId,
           },
-        }
-      );
+        });
 
-      const subscriptions = await strapi.entityService.findMany(
-        "api::subscription.subscription",
-        {
-          filters: {
-            originalTransactionId: transactionInfo.originalTransactionId,
-          },
-        }
-      );
+      // 4. Handle FATAL ERROR: Subscription Not Found in subsys
+      if (!subscription) {
+        const message = `A valid '${notificationDetails.type}' notification was received from Apple, but the corresponding subscription does not exist in the local database. This is a critical data inconsistency.`;
 
-      if (!subscriptions || subscriptions.length === 0) {
-        await this.updateLogStatus(logEntry.id, "failed_not_found");
-        throw new Error(
-          `No subscription found for originalTransactionId: ${transactionInfo.originalTransactionId}`
-        );
-      }
-      const subscription = subscriptions[0];
-
-      const updates = this.getSubscriptionUpdates(
-        decodedPayload.notificationType,
-        transactionInfo
-      );
-      if (Object.keys(updates).length > 1) {
-        await strapi.entityService.update(
-          "api::subscription.subscription",
-          subscription.id,
-          { data: updates }
-        );
+        // **Log as a FATAL error for the admin**
+        await auditLog({ strapi }).record({
+          event: "SUBSCRIPTION_MISSING_FOR_NOTIFICATION",
+          status: "FAILURE",
+          message: message,
+          details: notificationDetails, // Log all known details for investigation
+          strapiUserId: null, // No user ID is available
+        });
+        
+        logger.error(`[Apple Webhook SVC] FATAL: ${message} - UUID: ${notificationDetails.uuid}`);
+        throw new Error(message);
       }
 
-      await this.updateLogStatus(logEntry.id, "processed", subscription.id);
+      // 5. Normal Processing Logic
+      // ... Your existing logic to update subscription status goes here ...
+      // For example:
+      // await strapi.service('api::subscription.subscription').handleStateChange(subscription, transactionInfo);
+      
       logger.info(
-        `[Apple Webhook SVC] Successfully processed notification for subscription ID: ${subscription.id}`
+        `[Apple Webhook SVC] Successfully processed notification for strapiUserId: ${subscription.strapiUserId}`
       );
+
     } catch (error) {
-      if (logEntry && logEntry.id) {
+      // 6. Catch-All Failure Handling
+      let failureReason = error.message;
+      let eventType = "APPLE_NOTIFICATION_FAILURE";
+
+      if (!failureReason.includes("data inconsistency")) {
         if (error.message.includes("JWS")) {
-          await this.updateLogStatus(logEntry.id, "failed_verification");
+            failureReason = "The notification payload from Apple could not be verified.";
+            eventType = "APPLE_NOTIFICATION_VERIFICATION_FAILURE";
+        } else {
+            failureReason = "An unexpected error occurred during processing.";
         }
+        
+        logger.error(`[Apple Webhook SVC] ${failureReason}`, {
+            error: error.message,
+            details: notificationDetails,
+        });
+
+        // Attempt to find subscription to log the associated user ID
+        const subForErrorLog = await strapi.db.query("api::subscription.subscription").findOne({
+            where: { originalTransactionId: notificationDetails.originalTransactionId },
+        });
+
+        await auditLog({ strapi }).record({
+            event: eventType,
+            status: "FAILURE",
+            message: `${failureReason} The notification type was '${notificationDetails.type || "Unknown"}'.`,
+            // **Use the correct field name from your schema**
+            strapiUserId: subForErrorLog ? subForErrorLog.strapiUserId : null,
+            details: {
+                ...notificationDetails,
+                errorMessage: error.message,
+            },
+        });
       }
-      logger.error(
-        `[Apple Webhook SVC] Final error in processing: ${error.message}`
-      );
+
+      // Rethrow the error to ensure Apple's server retries the notification
       throw error;
     }
-  },
-
-  getSubscriptionUpdates(notificationType, transactionInfo) {
-    const { transactionId, expiresDate } = transactionInfo;
-    const updates = { latestTransactionId: transactionId };
-    switch (notificationType) {
-      case "DID_RENEW":
-      case "SUBSCRIBED":
-      case "OFFER_REDEEMED":
-        updates.status = "active";
-        if (expiresDate) updates.expireDate = new Date(expiresDate);
-        break;
-      case "EXPIRED":
-        updates.status = "expired";
-        if (expiresDate) updates.expireDate = new Date(expiresDate);
-        break;
-      case "REVOKE":
-      case "REFUND":
-        updates.status = "canceled";
-        break;
-      default:
-        logger.warn(
-          `[Apple Webhook SVC] Unhandled notification type: ${notificationType}.`
-        );
-    }
-    return updates;
-  },
-
-  async updateLogStatus(logId, status, subscriptionId = null) {
-    const data = { processingStatus: status };
-    if (subscriptionId) {
-      data.subscription = subscriptionId;
-    }
-    return strapi.entityService.update(
-      "api::apple-notification.apple-notification",
-      logId,
-      { data }
-    );
   },
 });

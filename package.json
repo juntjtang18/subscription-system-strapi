@@ -23,6 +23,7 @@
     "env-cmd": "^10.1.0"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^1.6.0",
     "@strapi/plugin-cloud": "4.15.5",
     "@strapi/plugin-documentation": "^4.25.23",
     "@strapi/plugin-i18n": "4.15.5",

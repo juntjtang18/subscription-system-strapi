@@ -766,6 +766,7 @@ export interface ApiAuditLogAuditLog extends Schema.CollectionType {
     singularName: 'audit-log';
     pluralName: 'audit-logs';
     displayName: 'audit log';
+    description: '';
   };
   options: {
     draftAndPublish: false;
@@ -776,6 +777,7 @@ export interface ApiAuditLogAuditLog extends Schema.CollectionType {
       Attribute.Required;
     message: Attribute.String;
     details: Attribute.JSON;
+    strapiUserId: Attribute.Integer;
     createdAt: Attribute.DateTime;
     updatedAt: Attribute.DateTime;
     createdBy: Attribute.Relation<

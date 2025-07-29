@@ -357,7 +357,8 @@ CREATE TABLE public.audit_logs (
     created_at timestamp(6) without time zone,
     updated_at timestamp(6) without time zone,
     created_by_id integer,
-    updated_by_id integer
+    updated_by_id integer,
+    strapi_user_id integer
 );
 
 
