@@ -14,7 +14,7 @@
       "name": "Apache 2.0",
       "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
     },
-    "x-generation-date": "2025-07-29T05:12:07.272Z"
+    "x-generation-date": "2025-07-29T07:34:20.570Z"
   },
   "x-strapi-config": {
     "auth": false,
@@ -1024,8 +1024,11 @@
                         "type": "string",
                         "enum": [
                           "active",
+                          "grace-period",
+                          "billing-issue",
                           "canceled",
-                          "expired"
+                          "expired",
+                          "revoked"
                         ]
                       },
                       "expireDate": {
@@ -1146,6 +1149,13 @@
                             }
                           }
                         }
+                      },
+                      "revocationDate": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "revocationReason": {
+                        "type": "string"
                       },
                       "createdAt": {
                         "type": "string",
@@ -2440,8 +2450,11 @@
                                                                               "type": "string",
                                                                               "enum": [
                                                                                 "active",
+                                                                                "grace-period",
+                                                                                "billing-issue",
                                                                                 "canceled",
-                                                                                "expired"
+                                                                                "expired",
+                                                                                "revoked"
                                                                               ]
                                                                             },
                                                                             "expireDate": {
@@ -2814,6 +2827,13 @@
                                                                                   }
                                                                                 }
                                                                               }
+                                                                            },
+                                                                            "revocationDate": {
+                                                                              "type": "string",
+                                                                              "format": "date-time"
+                                                                            },
+                                                                            "revocationReason": {
+                                                                              "type": "string"
                                                                             },
                                                                             "createdAt": {
                                                                               "type": "string",
@@ -3638,8 +3658,11 @@
                                         "type": "string",
                                         "enum": [
                                           "active",
+                                          "grace-period",
+                                          "billing-issue",
                                           "canceled",
-                                          "expired"
+                                          "expired",
+                                          "revoked"
                                         ]
                                       },
                                       "expireDate": {
@@ -4012,6 +4035,13 @@
                                             }
                                           }
                                         }
+                                      },
+                                      "revocationDate": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      },
+                                      "revocationReason": {
+                                        "type": "string"
                                       },
                                       "createdAt": {
                                         "type": "string",
@@ -5448,8 +5478,11 @@
                                       "type": "string",
                                       "enum": [
                                         "active",
+                                        "grace-period",
+                                        "billing-issue",
                                         "canceled",
-                                        "expired"
+                                        "expired",
+                                        "revoked"
                                       ]
                                     },
                                     "expireDate": {
@@ -5822,6 +5855,13 @@
                                           }
                                         }
                                       }
+                                    },
+                                    "revocationDate": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "revocationReason": {
+                                      "type": "string"
                                     },
                                     "createdAt": {
                                       "type": "string",
@@ -6697,8 +6737,11 @@
                                       "type": "string",
                                       "enum": [
                                         "active",
+                                        "grace-period",
+                                        "billing-issue",
                                         "canceled",
-                                        "expired"
+                                        "expired",
+                                        "revoked"
                                       ]
                                     },
                                     "expireDate": {
@@ -7071,6 +7114,13 @@
                                           }
                                         }
                                       }
+                                    },
+                                    "revocationDate": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "revocationReason": {
+                                      "type": "string"
                                     },
                                     "createdAt": {
                                       "type": "string",
@@ -7689,8 +7739,11 @@
                 "type": "string",
                 "enum": [
                   "active",
+                  "grace-period",
+                  "billing-issue",
                   "canceled",
-                  "expired"
+                  "expired",
+                  "revoked"
                 ]
               },
               "expireDate": {
@@ -7720,6 +7773,13 @@
                   ],
                   "example": "string or id"
                 }
+              },
+              "revocationDate": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "revocationReason": {
+                "type": "string"
               }
             }
           }
@@ -7885,8 +7945,11 @@
                                       "type": "string",
                                       "enum": [
                                         "active",
+                                        "grace-period",
+                                        "billing-issue",
                                         "canceled",
-                                        "expired"
+                                        "expired",
+                                        "revoked"
                                       ]
                                     },
                                     "expireDate": {
@@ -8259,6 +8322,13 @@
                                           }
                                         }
                                       }
+                                    },
+                                    "revocationDate": {
+                                      "type": "string",
+                                      "format": "date-time"
+                                    },
+                                    "revocationReason": {
+                                      "type": "string"
                                     },
                                     "createdAt": {
                                       "type": "string",
@@ -8764,8 +8834,11 @@
             "type": "string",
             "enum": [
               "active",
+              "grace-period",
+              "billing-issue",
               "canceled",
-              "expired"
+              "expired",
+              "revoked"
             ]
           },
           "expireDate": {
@@ -8801,6 +8874,13 @@
                 }
               }
             }
+          },
+          "revocationDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revocationReason": {
+            "type": "string"
           },
           "createdAt": {
             "type": "string",
@@ -9459,8 +9539,11 @@
                                                                 "type": "string",
                                                                 "enum": [
                                                                   "active",
+                                                                  "grace-period",
+                                                                  "billing-issue",
                                                                   "canceled",
-                                                                  "expired"
+                                                                  "expired",
+                                                                  "revoked"
                                                                 ]
                                                               },
                                                               "expireDate": {
@@ -9581,6 +9664,13 @@
                                                                     }
                                                                   }
                                                                 }
+                                                              },
+                                                              "revocationDate": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                              },
+                                                              "revocationReason": {
+                                                                "type": "string"
                                                               },
                                                               "createdAt": {
                                                                 "type": "string",

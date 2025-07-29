@@ -1091,7 +1091,16 @@ export interface ApiSubscriptionSubscription extends Schema.CollectionType {
       'manyToOne',
       'api::plan.plan'
     >;
-    status: Attribute.Enumeration<['active', 'canceled', 'expired']> &
+    status: Attribute.Enumeration<
+      [
+        'active',
+        'grace-period',
+        'billing-issue',
+        'canceled',
+        'expired',
+        'revoked'
+      ]
+    > &
       Attribute.Required &
       Attribute.DefaultTo<'active'>;
     expireDate: Attribute.DateTime;
@@ -1103,6 +1112,8 @@ export interface ApiSubscriptionSubscription extends Schema.CollectionType {
       'oneToMany',
       'api::apple-notification.apple-notification'
     >;
+    revocationDate: Attribute.DateTime;
+    revocationReason: Attribute.String;
     createdAt: Attribute.DateTime;
     updatedAt: Attribute.DateTime;
     createdBy: Attribute.Relation<

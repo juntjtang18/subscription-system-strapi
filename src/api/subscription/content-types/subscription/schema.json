@@ -26,8 +26,11 @@
       "type": "enumeration",
       "enum": [
         "active",
+        "grace-period",
+        "billing-issue",
         "canceled",
-        "expired"
+        "expired",
+        "revoked"
       ],
       "required": true,
       "default": "active"
@@ -49,6 +52,12 @@
       "relation": "oneToMany",
       "target": "api::apple-notification.apple-notification",
       "mappedBy": "subscription"
+    },
+    "revocationDate": {
+      "type": "datetime"
+    },
+    "revocationReason": {
+      "type": "string"
     }
   }
 }

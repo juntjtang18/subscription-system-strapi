@@ -1401,7 +1401,9 @@ CREATE TABLE public.subscriptions (
     updated_at timestamp(6) without time zone,
     created_by_id integer,
     updated_by_id integer,
-    start_date timestamp(6) without time zone
+    start_date timestamp(6) without time zone,
+    revocation_date timestamp(6) without time zone,
+    revocation_reason character varying(255)
 );
 
 

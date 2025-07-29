@@ -7,13 +7,13 @@ const {
   APPLE_APP_STORE_KEY_ID,
   APPLE_APP_STORE_PRIVATE_KEY,
 } = process.env;
-const logger = require("../../../utils/logger"); // Your technical logger for developers
-const auditLog = require("../../../utils/audit-log"); // The business logger for admins
+const logger = require("../../../utils/logger");
+const auditLog = require("../../../utils/audit-log");
+const notificationHandlers = require("../../../utils/apple-notification-handlers");
 
 module.exports = ({ strapi }) => ({
   /**
-   * Processes the incoming Apple notification with robust business audit logging.
-   * @param {object} body The request body containing the signed payload.
+   * Main processing function for all incoming Apple notifications.
    */
   async processNotification(body) {
     const api = new AppStoreServerAPI(
@@ -23,7 +23,6 @@ module.exports = ({ strapi }) => ({
       APPLE_APP_BUNDLE_ID
     );
 
-    // Object to hold key identifiers for reliable logging
     let notificationDetails = {
       uuid: null,
       type: null,
@@ -32,13 +31,11 @@ module.exports = ({ strapi }) => ({
     };
 
     try {
-      // 1. Verify and Decode the Payload from Apple
       const verificationResult = await api.verifyAndDecodeNotification(
         body.signedPayload
       );
       const jwsPayload = verificationResult;
 
-      // 2. Immediately Extract Key Information for Logging
       notificationDetails.uuid = jwsPayload.notificationUUID;
       notificationDetails.type = jwsPayload.notificationType;
       notificationDetails.subtype = jwsPayload.subtype;
@@ -50,10 +47,9 @@ module.exports = ({ strapi }) => ({
         transactionInfo.originalTransactionId;
 
       logger.info(
-        `[Apple Webhook SVC] Processing notification: ${notificationDetails.type} (${notificationDetails.subtype || 'N/A'}) - UUID: ${notificationDetails.uuid}`
+        `[Apple Webhook SVC] Routing notification: ${notificationDetails.type}`
       );
 
-      // 3. Find the Subscription using the transaction ID
       const subscription = await strapi.db
         .query("api::subscription.subscription")
         .findOne({
@@ -62,69 +58,74 @@ module.exports = ({ strapi }) => ({
           },
         });
 
-      // 4. Handle FATAL ERROR: Subscription Not Found in subsys
-      if (!subscription) {
-        const message = `A valid '${notificationDetails.type}' notification was received from Apple, but the corresponding subscription does not exist in the local database. This is a critical data inconsistency.`;
+      // Find the correct handler based on the notification type
+      const handler = notificationHandlers[notificationDetails.type];
 
-        // **Log as a FATAL error for the admin**
-        await auditLog({ strapi }).record({
-          event: "SUBSCRIPTION_MISSING_FOR_NOTIFICATION",
-          status: "FAILURE",
-          message: message,
-          details: notificationDetails, // Log all known details for investigation
-          strapiUserId: null, // No user ID is available
+      if (handler) {
+        // Call the handler with all the necessary context
+        await handler({
+          strapi,
+          subscription,
+          transactionInfo,
+          notificationDetails,
         });
-        
-        logger.error(`[Apple Webhook SVC] FATAL: ${message} - UUID: ${notificationDetails.uuid}`);
-        throw new Error(message);
+      } else {
+        // If no handler exists, log it as a warning
+        logger.warn(
+          `[Apple Webhook SVC] No handler found for notification type: ${notificationDetails.type}`
+        );
+        await auditLog({ strapi }).record({
+          event: "UNHANDLED_NOTIFICATION_TYPE",
+          status: "WARNING",
+          message: `Received notification type '${notificationDetails.type}' for which no handler is defined.`,
+          strapiUserId: subscription ? subscription.strapiUserId : null,
+          details: notificationDetails,
+        });
       }
-
-      // 5. Normal Processing Logic
-      // ... Your existing logic to update subscription status goes here ...
-      // For example:
-      // await strapi.service('api::subscription.subscription').handleStateChange(subscription, transactionInfo);
-      
-      logger.info(
-        `[Apple Webhook SVC] Successfully processed notification for strapiUserId: ${subscription.strapiUserId}`
-      );
-
     } catch (error) {
-      // 6. Catch-All Failure Handling
+      // The entire catch block remains the same as before
       let failureReason = error.message;
       let eventType = "APPLE_NOTIFICATION_FAILURE";
 
-      if (!failureReason.includes("data inconsistency")) {
+      if (
+        !failureReason.includes("data inconsistency") &&
+        !failureReason.includes("appAccountToken")
+      ) {
         if (error.message.includes("JWS")) {
-            failureReason = "The notification payload from Apple could not be verified.";
-            eventType = "APPLE_NOTIFICATION_VERIFICATION_FAILURE";
+          failureReason =
+            "The notification payload from Apple could not be verified.";
+          eventType = "APPLE_NOTIFICATION_VERIFICATION_FAILURE";
         } else {
-            failureReason = "An unexpected error occurred during processing.";
+          failureReason = "An unexpected error occurred during processing.";
         }
-        
+
         logger.error(`[Apple Webhook SVC] ${failureReason}`, {
-            error: error.message,
-            details: notificationDetails,
+          error: error.message,
+          details: notificationDetails,
         });
 
-        // Attempt to find subscription to log the associated user ID
-        const subForErrorLog = await strapi.db.query("api::subscription.subscription").findOne({
-            where: { originalTransactionId: notificationDetails.originalTransactionId },
-        });
+        const subForErrorLog = await strapi.db
+          .query("api::subscription.subscription")
+          .findOne({
+            where: {
+              originalTransactionId: notificationDetails.originalTransactionId,
+            },
+          });
 
         await auditLog({ strapi }).record({
-            event: eventType,
-            status: "FAILURE",
-            message: `${failureReason} The notification type was '${notificationDetails.type || "Unknown"}'.`,
-            // **Use the correct field name from your schema**
-            strapiUserId: subForErrorLog ? subForErrorLog.strapiUserId : null,
-            details: {
-                ...notificationDetails,
-                errorMessage: error.message,
-            },
+          event: eventType,
+          status: "FAILURE",
+          message: `${
+            failureReason
+          } The notification type was '${notificationDetails.type || "Unknown"}'.`,
+          strapiUserId: subForErrorLog ? subForErrorLog.strapiUserId : null,
+          details: {
+            ...notificationDetails,
+            errorMessage: error.message,
+          },
         });
       }
 
-      // Rethrow the error to ensure Apple's server retries the notification
       throw error;
     }
   },
