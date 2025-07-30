@@ -63,7 +63,7 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
     if (subscriptionsToCancel.length > 0) {
       for (const sub of subscriptionsToCancel) {
         await strapi.entityService.update('api::subscription.subscription', sub.id, {
-          data: { status: 'canceled' },
+          data: { status: 'cancelled' },
         });
       }
     }
@@ -99,6 +99,7 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
         throw new ApplicationError('Missing product or expiration info from decoded receipt.');
     }
 
+    // find the plan by productId
     const [plan] = await strapi.entityService.findMany('api::plan.plan', {
         filters: { productId },
         limit: 1,
@@ -129,7 +130,7 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
           transactionId: decodedTransaction.transactionId,
           userId: userId,
           rawReceipt: receipt,
-          status: 'pending_verification',
+          status: 'verified',
         },
       });
       logger.info(`[SVC] Saved receipt for transaction ${decodedTransaction.transactionId} for background verification.`);
@@ -154,7 +155,7 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
     }
     const existingSubscriptions = await strapi.entityService.findMany('api::subscription.subscription', { filters: { strapiUserId: userId, status: 'active' } });
     for (const sub of existingSubscriptions) {
-      await strapi.entityService.update('api::subscription.subscription', sub.id, { data: { status: 'canceled' } });
+      await strapi.entityService.update('api::subscription.subscription', sub.id, { data: { status: 'cancelled' } });
     }
     const newSubscription = await strapi.entityService.create('api::subscription.subscription', {
         data: {
@@ -181,7 +182,7 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
     if (plan.name !== 'Free') { const date = new Date(); date.setDate(date.getDate() + 30); expireDate = date.toISOString(); }
 
     if (existingSubscription) {
-        await strapi.entityService.update('api::subscription.subscription', existingSubscription.id, { data: { status: 'canceled' } });
+        await strapi.entityService.update('api::subscription.subscription', existingSubscription.id, { data: { status: 'cancelled' } });
     }
     return await strapi.entityService.create('api::subscription.subscription', {
         data: {

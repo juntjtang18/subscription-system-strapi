@@ -17,6 +17,11 @@ module.exports = {
     const { doubleCheckAppleReceipts } = require('./utils/cron-jobs');
 
     // Add the cron job to the Strapi schedule
+    /**
+     * Now verifyApplePurchases trust the receipt and use it activate the subscription
+     * So this job is not needed anymore.
+     */
+    /*
     strapi.cron.add({
       // Run every hour at the 5-minute mark (e.g., 1:05, 2:05)
       '0 * * * *': async () => {
@@ -26,5 +31,6 @@ module.exports = {
     });
 
     console.log('📅 Apple receipt verification job registered successfully.');
+    */
   },
 };
