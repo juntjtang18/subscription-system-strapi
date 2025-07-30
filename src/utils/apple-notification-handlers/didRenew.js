@@ -17,7 +17,6 @@ const logger = require('../logger');
  * @param {object} context.notificationDetails - Our custom object with UUID, type, etc.
  */
 module.exports = async ({ strapi, subscription, transactionInfo, notificationDetails }) => {
-  // If the subscription doesn't exist, it's a critical data issue.
   if (!subscription) {
     const message = `Received a 'DID_RENEW' notification, but the corresponding subscription does not exist. This is a critical data inconsistency.`;
     logger.error(`[Apple DID_RENEW Handler] FATAL: ${message} - UUID: ${notificationDetails.uuid}`);
@@ -32,19 +31,17 @@ module.exports = async ({ strapi, subscription, transactionInfo, notificationDet
   }
 
   const newProductId = transactionInfo.productId;
+  // The 'expiresDate' from Apple's transaction info is correct.
   const newExpiresDate = transactionInfo.expiresDate;
-  const currentPlan = subscription.plan; // This can be null.
-  //logger.debug(`currentPlan: ${currentPlan ? currentPlan.productId : 'None'}`);
+  const currentPlan = subscription.plan;
 
   let planChanged = false;
   let newPlanId = currentPlan ? currentPlan.id : null;
 
-  // Check if the plan has changed or if one is being assigned for the first time.
   if (!currentPlan || currentPlan.productId !== newProductId) {
     logger.info(`[Apple DID_RENEW Handler] Renewal involves a plan change. Old Product ID: ${currentPlan ? currentPlan.productId : 'None'}, New Product ID: ${newProductId}. Sub ID: ${subscription.id}`);
     planChanged = true;
 
-    // Find the new plan in the database.
     const plans = await strapi.entityService.findMany("api::plan.plan", {
       filters: { productId: newProductId },
     });
@@ -59,21 +56,18 @@ module.exports = async ({ strapi, subscription, transactionInfo, notificationDet
         strapiUserId: subscription.strapiUserId,
         details: { ...notificationDetails, transactionInfo },
       });
-      // Throw an error to signal a configuration problem.
       throw new Error(message);
     }
     newPlanId = plans[0].id;
   }
 
-  // Prepare the data for the update. The status is now active, and the expiration date is extended.
+  // ✨ FIX: Changed 'expiresDate' to 'expireDate' to match the database schema.
   const updateData = {
     status: 'active',
-    expiresDate: new Date(newExpiresDate),
-    // Only include the plan in the update if it has actually changed.
+    expireDate: new Date(newExpiresDate),
     ...(planChanged && { plan: newPlanId }),
   };
 
-  // Update the subscription in the database.
   await strapi.entityService.update(
     "api::subscription.subscription",
     subscription.id,
@@ -82,7 +76,6 @@ module.exports = async ({ strapi, subscription, transactionInfo, notificationDet
     }
   );
 
-  // Log the appropriate message based on whether the plan changed.
   if (planChanged) {
     const newPlan = await strapi.entityService.findOne("api::plan.plan", newPlanId);
     const oldPlanDetails = currentPlan ? `'${currentPlan.name}' (${currentPlan.productId})` : 'None';
