@@ -12,11 +12,13 @@ const logger = require("../logger");
  * @param {object} context.strapi - The Strapi instance.
  * @param {object|null} context.subscription - The existing subscription from the DB.
  * @param {object} context.notificationDetails - Our custom object with UUID, type, etc.
+ * @param {string} context.notificationId - The ID of the saved notification entry for linking.
  */
 module.exports = async ({
   strapi,
   subscription,
   notificationDetails,
+  notificationId,
 }) => {
   // If the subscription doesn't exist for this event, it's a critical data issue.
   if (!subscription) {
@@ -30,6 +32,7 @@ module.exports = async ({
       message,
       details: notificationDetails,
       strapiUserId: null,
+      apple_notification: notificationId,
     });
     throw new Error(message);
   }
@@ -82,5 +85,6 @@ module.exports = async ({
     message: auditMessage,
     strapiUserId: subscription.strapiUserId,
     details: notificationDetails,
+    apple_notification: notificationId,
   });
 };
