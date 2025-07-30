@@ -34,14 +34,14 @@ module.exports = async ({ strapi, subscription, transactionInfo, notificationDet
   
   // It's possible to get this notification even if the product ID hasn't changed.
   // We only act if the plan is actually different.
-  if (currentPlan && currentPlan.appleProductId === newProductId) {
+  if (currentPlan && currentPlan.productId === newProductId) {
     logger.info(`[Apple DID_CHANGE_RENEWAL_PREF Handler] Received notification for plan change, but the productId (${newProductId}) is the same as the current plan. No action taken. Sub ID: ${subscription.id}`);
     return;
   }
 
   // Find the new plan in the database using the new Apple Product ID.
   const plans = await strapi.entityService.findMany("api::plan.plan", {
-    filters: { appleProductId: newProductId },
+    filters: { productId: newProductId },
   });
 
   // If we can't find the plan, it's a configuration error (the plan exists in App Store Connect but not in our DB).
@@ -72,7 +72,7 @@ module.exports = async ({ strapi, subscription, transactionInfo, notificationDet
     }
   );
 
-  const message = `User successfully changed plan from '${currentPlan.name}' (${currentPlan.appleProductId}) to '${newPlan.name}' (${newPlan.appleProductId}). The change will take effect on the next renewal.`;
+  const message = `User successfully changed plan from '${currentPlan.name}' (${currentPlan.productId}) to '${newPlan.name}' (${newPlan.productId}). The change will take effect on the next renewal.`;
   logger.info(`[Apple DID_CHANGE_RENEWAL_PREF Handler] ${message} - User ID: ${subscription.strapiUserId}, Sub ID: ${subscription.id}`);
 
   // Record the successful plan change in the audit log.
