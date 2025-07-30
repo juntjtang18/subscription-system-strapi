@@ -13,12 +13,14 @@ const logger = require("../logger");
  * @param {object|null} context.subscription - The existing subscription from the DB.
  * @param {object} context.transactionInfo - Decoded transaction info from Apple.
  * @param {object} context.notificationDetails - Our custom object with UUID, type, etc.
+ * @param {string} context.notificationId - The ID of the saved notification entry for linking.
  */
 module.exports = async ({
   strapi,
   subscription,
   transactionInfo,
   notificationDetails,
+  notificationId,
 }) => {
   // If the subscription doesn't exist for a renewal failure event, it's a critical data issue.
   if (!subscription) {
@@ -32,6 +34,7 @@ module.exports = async ({
       message,
       details: notificationDetails,
       strapiUserId: null,
+      apple_notification: notificationId, // Link the audit log to the notification
     });
     throw new Error(message);
   }
@@ -71,6 +74,7 @@ module.exports = async ({
     message: auditMessage,
     strapiUserId: updatedSubscription.strapiUserId,
     details: notificationDetails,
+    apple_notification: notificationId, // Link the audit log to the notification
   });
 
   return updatedSubscription;

@@ -11,8 +11,9 @@ const logger = require("../logger");
  * @param {object} context - The context object.
  * @param {object} context.strapi - The Strapi instance.
  * @param {object} context.notificationDetails - Our custom object with UUID, type, etc.
+ * @param {string} context.notificationId - The ID of the saved notification entry for linking.
  */
-module.exports = async ({ strapi, notificationDetails }) => {
+module.exports = async ({ strapi, notificationDetails, notificationId }) => {
   const message = `Successfully received a 'TEST' notification from Apple. The endpoint is working correctly.`;
 
   logger.info(`[Apple TEST Handler] ${message}`);
@@ -23,5 +24,6 @@ module.exports = async ({ strapi, notificationDetails }) => {
     message,
     strapiUserId: null, // Test notifications are not associated with a user.
     details: notificationDetails,
+    apple_notification: notificationId, // Link the audit log to the notification
   });
 };

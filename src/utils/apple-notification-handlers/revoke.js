@@ -13,12 +13,14 @@ const logger = require("../logger");
  * @param {object|null} context.subscription - The existing subscription from the DB.
  * @param {object} context.transactionInfo - Decoded transaction info from Apple.
  * @param {object} context.notificationDetails - Our custom object with UUID, type, etc.
+ * @param {string} context.notificationId
  */
 module.exports = async ({
   strapi,
   subscription,
   transactionInfo,
   notificationDetails,
+  notificationId,
 }) => {
   if (!subscription) {
     const message = `Received a 'REVOKE' notification, but the corresponding subscription does not exist. This is a critical data inconsistency.`;
@@ -31,6 +33,7 @@ module.exports = async ({
       message,
       details: notificationDetails,
       strapiUserId: null,
+      apple_notification: notificationId,
     });
     throw new Error(message);
   }
@@ -61,5 +64,7 @@ module.exports = async ({
     message: `Subscription was revoked by Apple and access has been removed.`,
     strapiUserId: subscription.strapiUserId,
     details: notificationDetails,
+    apple_notification: notificationId,
+  
   });
 };

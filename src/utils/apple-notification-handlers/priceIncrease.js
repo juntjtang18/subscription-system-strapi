@@ -12,11 +12,13 @@ const logger = require("../logger");
  * @param {object} context.strapi - The Strapi instance.
  * @param {object|null} context.subscription - The existing subscription from the DB.
  * @param {object} context.notificationDetails - Our custom object with UUID, type, etc.
+ * @param {string} context.notificationId - The ID of the saved notification entry for linking.
  */
 module.exports = async ({
   strapi,
   subscription,
   notificationDetails,
+  notificationId,
 }) => {
   if (!subscription) {
     const message = `Received a 'PRICE_INCREASE' notification, but the corresponding subscription does not exist. The event was still logged.`;
@@ -29,6 +31,7 @@ module.exports = async ({
         message,
         details: notificationDetails,
         strapiUserId: null,
+        apple_notification: notificationId, // Link the audit log to the notification
       });
     return;
   }
@@ -52,5 +55,6 @@ module.exports = async ({
     message,
     strapiUserId: subscription.strapiUserId,
     details: notificationDetails,
+    apple_notification: notificationId, // Link the audit log to the notification
   });
 };

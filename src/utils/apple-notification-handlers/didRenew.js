@@ -15,8 +15,9 @@ const logger = require('../logger');
  * @param {object} context.subscription - The existing subscription from the DB (with relations populated).
  * @param {object} context.transactionInfo - The JWS transaction info from the notification.
  * @param {object} context.notificationDetails - Our custom object with UUID, type, etc.
+ * @param {object} context.notificationId - The ID of the saved notification entry for linking.
  */
-module.exports = async ({ strapi, subscription, transactionInfo, notificationDetails }) => {
+module.exports = async ({ strapi, subscription, transactionInfo, notificationDetails, notificationId }) => {
   if (!subscription) {
     const message = `Received a 'DID_RENEW' notification, but the corresponding subscription does not exist. This is a critical data inconsistency.`;
     logger.error(`[Apple DID_RENEW Handler] FATAL: ${message} - UUID: ${notificationDetails.uuid}`);
@@ -26,6 +27,7 @@ module.exports = async ({ strapi, subscription, transactionInfo, notificationDet
       message,
       details: notificationDetails,
       strapiUserId: null,
+      apple_notification: notificationId,
     });
     throw new Error(message);
   }
@@ -55,6 +57,7 @@ module.exports = async ({ strapi, subscription, transactionInfo, notificationDet
         message,
         strapiUserId: subscription.strapiUserId,
         details: { ...notificationDetails, transactionInfo },
+        apple_notification: notificationId,
       });
       throw new Error(message);
     }
@@ -87,6 +90,7 @@ module.exports = async ({ strapi, subscription, transactionInfo, notificationDet
       message,
       strapiUserId: subscription.strapiUserId,
       details: { ...notificationDetails, transactionInfo, oldPlan: currentPlan, newPlan },
+      apple_notification: notificationId, // Link the audit log to the notification
     });
   } else {
     const message = `Subscription successfully renewed. New expiration: ${new Date(newExpiresDate).toISOString()}`;
@@ -97,6 +101,7 @@ module.exports = async ({ strapi, subscription, transactionInfo, notificationDet
       message,
       strapiUserId: subscription.strapiUserId,
       details: { ...notificationDetails, transactionInfo },
+      apple_notification: notificationId, // Link the audit log to the notification
     });
   }
 };

@@ -13,12 +13,14 @@ const logger = require("../logger");
  * @param {object|null} context.subscription - The existing subscription from the DB.
  * @param {object} context.transactionInfo - Decoded transaction info from Apple.
  * @param {object} context.notificationDetails - Our custom object with UUID, type, etc.
+ * @param {string} context.notificationId - The ID of the saved notification entry for linking.
  */
 module.exports = async ({
   strapi,
   subscription,
   transactionInfo,
   notificationDetails,
+  notificationId, // This is not used in this handler, but can be useful for linking in audit logs
 }) => {
   if (!subscription) {
     const message = `Received a 'REFUND' notification, but the corresponding subscription does not exist. This is a critical data inconsistency.`;
@@ -31,6 +33,7 @@ module.exports = async ({
       message,
       details: notificationDetails,
       strapiUserId: null,
+      apple_notification: notificationId, // Link the audit log to the notification
     });
     throw new Error(message);
   }
@@ -61,5 +64,6 @@ module.exports = async ({
     message: `Subscription was refunded and access has been revoked.`,
     strapiUserId: subscription.strapiUserId,
     details: notificationDetails,
+    apple_notification: notificationId, // Link the audit log to the notification
   });
 };

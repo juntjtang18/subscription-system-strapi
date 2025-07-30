@@ -13,12 +13,14 @@ const logger = require("../logger");
  * @param {object|null} context.subscription - The existing subscription from the DB.
  * @param {object} context.transactionInfo - Decoded transaction info from Apple.
  * @param {object} context.notificationDetails - Our custom object with UUID, type, etc.
+ * @param {string} context.notificationId - The ID of the saved notification entry for linking.
  */
 module.exports = async ({
   strapi,
   subscription,
   transactionInfo,
   notificationDetails,
+  notificationId
 }) => {
   // We don't throw an error if the subscription isn't found, as this is informational.
   if (!subscription) {
@@ -33,6 +35,7 @@ module.exports = async ({
         message,
         details: notificationDetails,
         strapiUserId: null,
+        apple_notification: notificationId,
       });
     return;
   }
@@ -56,5 +59,6 @@ module.exports = async ({
         offerIdentifier,
         offerType: offerTypeMap[offerType] || "Unknown"
     },
+    apple_notification: notificationId,
   });
 };
