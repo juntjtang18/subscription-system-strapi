@@ -40,7 +40,7 @@ module.exports = async ({
   // Find the new plan the user has switched to.
   const newPlanId = notificationDetails.productId;
   const newPlan = await strapi.db.query("api::plan.plan").findOne({
-    where: { appleProductId: newPlanId },
+    where: { productId: newPlanId },
   });
 
   if (!newPlan) {
