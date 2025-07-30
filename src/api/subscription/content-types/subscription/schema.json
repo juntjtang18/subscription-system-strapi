@@ -28,7 +28,7 @@
         "active",
         "grace-period",
         "billing-issue",
-        "canceled",
+        "cancelled",
         "expired",
         "revoked"
       ],

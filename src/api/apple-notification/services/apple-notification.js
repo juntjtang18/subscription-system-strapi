@@ -95,11 +95,13 @@ module.exports = ({ strapi }) => ({
           filters: {
             originalTransactionId: transactionInfo.originalTransactionId,
           },
+          populate: { plan: true }, // This ensures subscription.plan is loaded.
           sort: { createdAt: 'desc' },
         });
 
       let subscription = subscriptions.find(s => s.status === 'active') || subscriptions[0];
-      
+      //logger.debug(`plan is subscription.plan: ${JSON.stringify(subscription ? subscription.plan : null)}`);
+
       // Add the final piece of data to our update object
       notificationUpdateData.subscription = subscription ? subscription.id : null;
 
@@ -108,7 +110,9 @@ module.exports = ({ strapi }) => ({
       } else {
         logger.warn(`[Apple Webhook SVC] No subscription found for originalTransactionId: ${transactionInfo.originalTransactionId}. A new one may be created by the handler.`);
       }
-
+      
+      //logger.debug(`subscription: ${JSON.stringify(subscription)}`);
+      
       const handler = notificationHandlers[notificationDetails.type];
       if (handler) {
         await handler({

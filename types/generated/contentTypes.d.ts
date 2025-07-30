@@ -1112,7 +1112,7 @@ export interface ApiSubscriptionSubscription extends Schema.CollectionType {
         'active',
         'grace-period',
         'billing-issue',
-        'canceled',
+        'cancelled',
         'expired',
         'revoked'
       ]

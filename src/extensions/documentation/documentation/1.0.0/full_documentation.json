@@ -14,7 +14,7 @@
       "name": "Apache 2.0",
       "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
     },
-    "x-generation-date": "2025-07-29T21:45:30.148Z"
+    "x-generation-date": "2025-07-30T01:29:52.579Z"
   },
   "x-strapi-config": {
     "auth": false,
@@ -1039,7 +1039,7 @@
                           "active",
                           "grace-period",
                           "billing-issue",
-                          "canceled",
+                          "cancelled",
                           "expired",
                           "revoked"
                         ]
@@ -2797,7 +2797,7 @@
                                       "active",
                                       "grace-period",
                                       "billing-issue",
-                                      "canceled",
+                                      "cancelled",
                                       "expired",
                                       "revoked"
                                     ]
@@ -3424,7 +3424,7 @@
                                                                                 "active",
                                                                                 "grace-period",
                                                                                 "billing-issue",
-                                                                                "canceled",
+                                                                                "cancelled",
                                                                                 "expired",
                                                                                 "revoked"
                                                                               ]
@@ -4729,7 +4729,7 @@
                                           "active",
                                           "grace-period",
                                           "billing-issue",
-                                          "canceled",
+                                          "cancelled",
                                           "expired",
                                           "revoked"
                                         ]
@@ -6646,7 +6646,7 @@
                                         "active",
                                         "grace-period",
                                         "billing-issue",
-                                        "canceled",
+                                        "cancelled",
                                         "expired",
                                         "revoked"
                                       ]
@@ -8002,7 +8002,7 @@
                                         "active",
                                         "grace-period",
                                         "billing-issue",
-                                        "canceled",
+                                        "cancelled",
                                         "expired",
                                         "revoked"
                                       ]
@@ -9101,7 +9101,7 @@
                   "active",
                   "grace-period",
                   "billing-issue",
-                  "canceled",
+                  "cancelled",
                   "expired",
                   "revoked"
                 ]
@@ -9307,7 +9307,7 @@
                                         "active",
                                         "grace-period",
                                         "billing-issue",
-                                        "canceled",
+                                        "cancelled",
                                         "expired",
                                         "revoked"
                                       ]
@@ -10293,7 +10293,7 @@
               "active",
               "grace-period",
               "billing-issue",
-              "canceled",
+              "cancelled",
               "expired",
               "revoked"
             ]
@@ -10998,7 +10998,7 @@
                                                                   "active",
                                                                   "grace-period",
                                                                   "billing-issue",
-                                                                  "canceled",
+                                                                  "cancelled",
                                                                   "expired",
                                                                   "revoked"
                                                                 ]
