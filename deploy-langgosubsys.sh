@@ -26,7 +26,7 @@ echo "$VERSION" > "$VERSION_FILE"
 
 # --- Configuration ---
 PROJECT_ID="lucid-arch-451211-b0"
-SERVICE_NAME="langgosubsys"
+SERVICE_NAME="langgo-subsys"
 REGION="us-west1"
 IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}:${VERSION}"
 CLOUD_SQL_INSTANCE="lucid-arch-451211-b0:us-west1:cloud-sql-server"
@@ -63,8 +63,8 @@ gcloud run deploy "${SERVICE_NAME}" \
   --set-env-vars "DATABASE_NAME=${DATABASE_NAME}" \
   --set-env-vars "DATABASE_USERNAME=${DATABASE_USERNAME}" \
   --set-env-vars "DATABASE_PASSWORD=${DATABASE_PASSWORD}" \
-  --set-env-vars "APP_URL=https://langgosubsys.geniusParentingAI.ca" \
-  --set-env-vars "ADMIN_URL=https://langgosubsys.geniusParentingAI.ca/admin" \
+  --set-env-vars "APP_URL=https://langgo-subsys.geniusParentingAI.ca" \
+  --set-env-vars "ADMIN_URL=https://langgo-subsys.geniusParentingAI.ca/admin" \
   --set-env-vars "APP_KEYS=${APP_KEYS}" \
   --set-env-vars "API_TOKEN_SALT=${API_TOKEN_SALT}" \
   --set-env-vars "ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET}" \
