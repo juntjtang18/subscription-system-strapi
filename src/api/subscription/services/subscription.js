@@ -79,7 +79,18 @@ module.exports = createCoreService('api::subscription.subscription', ({ strapi }
     try {
         decodedTransaction = await verifyAppleJWS(receipt);
         logger.debug('[SVC] Local JWS verification successful:', decodedTransaction);
-    } catch (error) {
+        
+        const existingReceipts = await strapi.entityService.findMany('api::apple-receipt.apple-receipt', {
+          filters: { transactionId: decodedTransaction.transactionId },
+          limit: 1,
+        });
+    
+        if (existingReceipts && existingReceipts.length > 0) {
+          logger.info(`[SVC] Ignoring duplicate request for already processed transactionId: ${decodedTransaction.transactionId}`);
+          return { success: true, message: 'This transaction has already been processed.' };
+        }    
+
+      } catch (error) {
         logger.error(`[SVC] Local JWS verification failed: ${error.message}`);
         throw new ApplicationError('Invalid purchase receipt.');
     }

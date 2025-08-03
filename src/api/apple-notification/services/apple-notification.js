@@ -7,6 +7,7 @@ const notificationHandlers = require("../../../utils/apple-notification-handlers
 
 module.exports = ({ strapi }) => ({
   async processNotification(body) {
+    logger.info("[Apple Webhook SVC] A new notification arrived...");
     let notificationEntry;
 
     // 1. EARLY PERSISTENCE: Create the record, this is the first and only 'create' call.
