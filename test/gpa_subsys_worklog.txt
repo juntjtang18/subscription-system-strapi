@@ -313,3 +313,7 @@ PGPASSWORD='Passw0rd@Strapi' psql "host=/cloudsql/lucid-arch-451211-b0:us-west1:
   "expiresDate": 1753830300000,
 
   "purchaseDate": 1753830120000,
+
+
+
+ngrok http 1337

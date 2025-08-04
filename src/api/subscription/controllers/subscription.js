@@ -2,7 +2,7 @@
 
 const { createCoreController } = require('@strapi/strapi').factories;
 const { ApplicationError, NotFoundError } = require('@strapi/utils').errors;
-const logger = require('../../../utils/logger'); // Import the new logger
+const logger = require('../../../utils/logger'); 
 
 module.exports = createCoreController('api::subscription.subscription', ({ strapi }) => ({
   async subscribeFreePlan(ctx) {
@@ -14,12 +14,42 @@ module.exports = createCoreController('api::subscription.subscription', ({ strap
     }
 
     try {
-      logger.debug(`[CTRL] /subscribe-free-plan: Calling service.`);
-      await strapi.service('api::subscription.subscription').subscribeFreePlan(userId);
-      logger.debug(`[CTRL] /subscribe-free-plan: Service call complete. Fetching full subscription.`);
+      logger.debug(`[CTRL] /subscribe-free-plan: Calling service to create subscription.`);
+      const newSubscription = await strapi.service('api::subscription.subscription').subscribeFreePlan(userId);
+      logger.debug(`[CTRL] /subscribe-free-plan: Service call complete. Subscription ID: ${newSubscription.id}. Now formatting the response.`);
       
-      const newCtx = { ...ctx, params: { userId } };
-      return await this.getSubscriptionForUser(newCtx);
+      // 1. Re-fetch the subscription with its plan relation populated.
+      const subscriptionWithPlan = await strapi.entityService.findOne('api::subscription.subscription', newSubscription.id, {
+          populate: { plan: true },
+      });
+
+      if (!subscriptionWithPlan.plan?.id) {
+        throw new ApplicationError('Subscription created, but it has no associated plan.');
+      }
+      
+      // 2. Fetch the full, detailed plan information.
+      const planId = subscriptionWithPlan.plan.id;
+      const planController = strapi.controller('api::plan.plan');
+      const planResponse = await planController.findOneWithDetails({ params: { id: planId } });
+
+      // 3. Format the final subscription object.
+      const formattedSubscription = {
+        id: subscriptionWithPlan.id,
+        attributes: {
+          strapiUserId: subscriptionWithPlan.strapiUserId,
+          status: subscriptionWithPlan.status,
+          expireDate: subscriptionWithPlan.expireDate,
+          originalTransactionId: subscriptionWithPlan.originalTransactionId,
+          latestTransactionId: subscriptionWithPlan.latestTransactionId,
+          createdAt: subscriptionWithPlan.createdAt,
+          updatedAt: subscriptionWithPlan.updatedAt,
+          startDate: subscriptionWithPlan.startDate,
+          plan: planResponse.data,
+        },
+      };
+
+      // 4. Return the data directly as JSON.
+      return { data: formattedSubscription, meta: {} };
 
     } catch (error) {
       logger.error(`[CTRL] /subscribe-free-plan: ERROR - Name: ${error.name}, Message: ${error.message}`);
@@ -40,22 +70,16 @@ module.exports = createCoreController('api::subscription.subscription', ({ strap
 
     try {
       const queryFilters = { strapiUserId: userId, status: 'active' };
-      logger.debug('[CTRL] getSubscriptionForUser: Querying DB with filters:', queryFilters);
-      
       const subscriptions = await strapi.entityService.findMany('api::subscription.subscription', {
         filters: queryFilters,
         populate: { plan: true },
       });
       
-      logger.debug(`[CTRL] getSubscriptionForUser: DB query returned ${subscriptions.length} results.`);
-
       if (!subscriptions || subscriptions.length === 0) {
-        logger.error('[CTRL] getSubscriptionForUser: ERROR - No active subscription found.');
         throw new NotFoundError('No active subscription found for this user.');
       }
 
       const activeSubscription = subscriptions[0];
-      logger.debug(`[CTRL] getSubscriptionForUser: Found active subscription ID: ${activeSubscription.id}`);
       
       if (!activeSubscription.plan?.id) {
         throw new ApplicationError('Subscription found, but it has no associated plan.');
