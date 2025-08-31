@@ -11,6 +11,7 @@ module.exports = [
         'https://langgo-en-strapi.geniusparentingai.ca',
         'https://langgo-subsys.geniusparentingai.ca',
 	      'http://localhost:2338',
+        'http://localhost:2337',
         'http://localhost:1338',
         'https://strapi.geniusparentingai.ca',
         'https://www.geniusparentingai.ca',
