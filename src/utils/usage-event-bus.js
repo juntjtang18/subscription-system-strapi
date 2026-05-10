@@ -1,6 +1,6 @@
 'use strict';
 
-const { createEventBus } = require('@langgo/event-bus-client');
+const { createEventBusFromEnv } = require('@langgo/event-bus-client');
 const logger = require('./logger');
 const usageRuleCache = require('./usage-rule-cache');
 
@@ -10,74 +10,6 @@ let initPromise = null;
 
 function isUsageEventBusEnabled() {
   return process.env.USAGE_EVENT_BUS_ENABLED !== 'false';
-}
-
-function encodeConnectionPart(value) {
-  return encodeURIComponent(value || '');
-}
-
-function buildPostgresConnectionString(env = process.env) {
-  if (env.EVENT_BUS_POSTGRES_URL) {
-    return env.EVENT_BUS_POSTGRES_URL;
-  }
-
-  if (env.DATABASE_URL) {
-    return env.DATABASE_URL;
-  }
-
-  const user = encodeConnectionPart(env.DATABASE_USERNAME || 'strapi');
-  const password = encodeConnectionPart(env.DATABASE_PASSWORD || 'strapi');
-  const database = encodeConnectionPart(env.DATABASE_NAME || 'strapi');
-  const host = env.DATABASE_HOST || 'localhost';
-  const port = env.DATABASE_PORT || '5432';
-
-  if (host.startsWith('/')) {
-    return `postgresql://${user}:${password}@/${database}?host=${encodeConnectionPart(host)}&port=${encodeConnectionPart(port)}`;
-  }
-
-  return `postgresql://${user}:${password}@${host}:${port}/${database}`;
-}
-
-function buildUsageEventBusOptions(env = process.env) {
-  const driver = env.EVENT_BUS_DRIVER || 'postgres';
-
-  if (driver === 'postgres') {
-    return {
-      driver,
-      postgres: {
-        connectionString: buildPostgresConnectionString(env),
-        channelPrefix: env.EVENT_BUS_CHANNEL_PREFIX || 'event_bus',
-      },
-    };
-  }
-
-  if (driver === 'rabbitmq') {
-    return {
-      driver,
-      rabbitmq: {
-        url: env.EVENT_BUS_RABBITMQ_URL,
-        exchange: env.EVENT_BUS_RABBITMQ_EXCHANGE || 'event_bus',
-        exchangeType: env.EVENT_BUS_RABBITMQ_EXCHANGE_TYPE || 'topic',
-        queuePrefix: env.EVENT_BUS_QUEUE_PREFIX || 'langgo_subsys_usage',
-        durable: env.EVENT_BUS_RABBITMQ_DURABLE !== 'false',
-        prefetch: Number(env.EVENT_BUS_RABBITMQ_PREFETCH || 1),
-        messagePersistent: env.EVENT_BUS_RABBITMQ_PERSISTENT !== 'false',
-      },
-    };
-  }
-
-  if (driver === 'google-pubsub') {
-    return {
-      driver,
-      google: {
-        projectId: env.GCP_PROJECT_ID,
-        topicPrefix: env.EVENT_BUS_TOPIC_PREFIX,
-        subscriptionPrefix: env.EVENT_BUS_SUBSCRIPTION_PREFIX || 'langgo-subsys-usage',
-      },
-    };
-  }
-
-  throw new Error(`Unsupported EVENT_BUS_DRIVER: ${driver}`);
 }
 
 async function subscribeToTopic(strapi, topic) {
@@ -144,7 +76,7 @@ async function initUsageEventBus(strapi) {
     await usageRuleCache.refreshUsageRuleCache(strapi);
 
     if (!eventBus) {
-      eventBus = createEventBus(buildUsageEventBusOptions(process.env));
+      eventBus = createEventBusFromEnv();
       logger.info(`[usage-event-bus] Initialized driver "${eventBus.driver}".`);
     }
 
@@ -178,8 +110,6 @@ async function shutdownUsageEventBus() {
 }
 
 module.exports = {
-  buildPostgresConnectionString,
-  buildUsageEventBusOptions,
   initUsageEventBus,
   syncUsageRuleSubscriptions,
   shutdownUsageEventBus,

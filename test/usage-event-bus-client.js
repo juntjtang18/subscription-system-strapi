@@ -1,10 +1,9 @@
 'use strict';
 
-const { createEventBus } = require('@langgo/event-bus-client');
-const { buildUsageEventBusOptions } = require('../src/utils/usage-event-bus');
+const { createEventBusFromEnv } = require('@langgo/event-bus-client');
 
 function createUsageEventBusTestClient() {
-  return createEventBus(buildUsageEventBusOptions(process.env));
+  return createEventBusFromEnv();
 }
 
 async function publishUsageEvent(topic, payload) {

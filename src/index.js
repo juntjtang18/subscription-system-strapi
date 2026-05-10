@@ -1,6 +1,5 @@
 'use strict';
 
-const logger = require('./utils/logger');
 const {
   initUsageEventBus,
   shutdownUsageEventBus,
@@ -22,11 +21,7 @@ module.exports = {
     // Moved the require statement here to ensure Strapi is fully loaded first.
     const { doubleCheckAppleReceipts } = require('./utils/cron-jobs');
 
-    try {
-      await initUsageEventBus(strapi);
-    } catch (error) {
-      logger.error(`[bootstrap] Failed to initialize usage event bus: ${error.message}`);
-    }
+    await initUsageEventBus(strapi);
 
     // Add the cron job to the Strapi schedule
     /**
