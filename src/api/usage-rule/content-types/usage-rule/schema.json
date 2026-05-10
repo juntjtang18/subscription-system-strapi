@@ -1,10 +1,10 @@
 {
   "kind": "collectionType",
-  "collectionName": "usageledgers",
+  "collectionName": "usage_rules",
   "info": {
-    "singularName": "usageledger",
-    "pluralName": "usageledgers",
-    "displayName": "usage ledger",
+    "singularName": "usage-rule",
+    "pluralName": "usage-rules",
+    "displayName": "Usage Rule",
     "description": ""
   },
   "options": {
@@ -12,23 +12,27 @@
   },
   "pluginOptions": {},
   "attributes": {
-    "strapiUserId": {
-      "type": "integer",
+    "eventName": {
+      "type": "string",
       "required": true
     },
     "entitlement": {
       "type": "relation",
       "relation": "manyToOne",
-      "target": "api::entitlement.entitlement",
-      "inversedBy": "usageledgers"
-    },
-    "consumedAt": {
-      "type": "datetime"
+      "target": "api::entitlement.entitlement"
     },
     "amount": {
       "type": "integer",
       "default": 1,
       "required": true
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "filterJson": {
+      "type": "json"
     }
   }
 }

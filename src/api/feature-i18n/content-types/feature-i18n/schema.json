@@ -1,0 +1,33 @@
+{
+  "kind": "collectionType",
+  "collectionName": "feature_i18ns",
+  "info": {
+    "singularName": "feature-i18n",
+    "pluralName": "feature-i18ns",
+    "displayName": "Feature i18n"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "i18n": {
+      "localized": true
+    }
+  },
+  "attributes": {
+    "feature": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::feature.feature",
+      "inversedBy": "feature_i18ns"
+    },
+    "feature_name": {
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "type": "string"
+    }
+  }
+}

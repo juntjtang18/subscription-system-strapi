@@ -904,6 +904,11 @@ export interface ApiFeatureFeature extends Schema.CollectionType {
           localized: false;
         };
       }>;
+    feature_i18ns: Attribute.Relation<
+      'api::feature.feature',
+      'oneToMany',
+      'api::feature-i18n.feature-i18n'
+    >;
     createdAt: Attribute.DateTime;
     updatedAt: Attribute.DateTime;
     createdBy: Attribute.Relation<
@@ -922,6 +927,56 @@ export interface ApiFeatureFeature extends Schema.CollectionType {
       'api::feature.feature',
       'oneToMany',
       'api::feature.feature'
+    >;
+    locale: Attribute.String;
+  };
+}
+
+export interface ApiFeatureI18NFeatureI18N extends Schema.CollectionType {
+  collectionName: 'feature_i18ns';
+  info: {
+    singularName: 'feature-i18n';
+    pluralName: 'feature-i18ns';
+    displayName: 'Feature i18n';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  pluginOptions: {
+    i18n: {
+      localized: true;
+    };
+  };
+  attributes: {
+    feature: Attribute.Relation<
+      'api::feature-i18n.feature-i18n',
+      'manyToOne',
+      'api::feature.feature'
+    >;
+    feature_name: Attribute.String &
+      Attribute.SetPluginOptions<{
+        i18n: {
+          localized: true;
+        };
+      }>;
+    createdAt: Attribute.DateTime;
+    updatedAt: Attribute.DateTime;
+    createdBy: Attribute.Relation<
+      'api::feature-i18n.feature-i18n',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    updatedBy: Attribute.Relation<
+      'api::feature-i18n.feature-i18n',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    localizations: Attribute.Relation<
+      'api::feature-i18n.feature-i18n',
+      'oneToMany',
+      'api::feature-i18n.feature-i18n'
     >;
     locale: Attribute.String;
   };
@@ -1055,7 +1110,8 @@ export interface ApiPlanEntLinkPlanEntLink extends Schema.CollectionType {
   info: {
     singularName: 'plan-ent-link';
     pluralName: 'plan-ent-links';
-    displayName: 'PlanEntLink';
+    displayName: 'Plan Entitle Link';
+    description: '';
   };
   options: {
     draftAndPublish: false;
@@ -1147,12 +1203,130 @@ export interface ApiSubscriptionSubscription extends Schema.CollectionType {
   };
 }
 
+export interface ApiUsageEventUsageEvent extends Schema.CollectionType {
+  collectionName: 'usage_events';
+  info: {
+    singularName: 'usage-event';
+    pluralName: 'usage-events';
+    displayName: 'Usage Event';
+    description: '';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    eventId: Attribute.String & Attribute.Required & Attribute.Unique;
+    eventName: Attribute.String & Attribute.Required;
+    strapiUserId: Attribute.Integer & Attribute.Required;
+    username: Attribute.String;
+    payload: Attribute.JSON;
+    status: Attribute.Enumeration<
+      ['received', 'processed', 'skipped', 'failed']
+    > &
+      Attribute.Required &
+      Attribute.DefaultTo<'received'>;
+    error: Attribute.Text;
+    processedAt: Attribute.DateTime;
+    createdAt: Attribute.DateTime;
+    updatedAt: Attribute.DateTime;
+    createdBy: Attribute.Relation<
+      'api::usage-event.usage-event',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    updatedBy: Attribute.Relation<
+      'api::usage-event.usage-event',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+  };
+}
+
+export interface ApiUsageRecordUsageRecord extends Schema.CollectionType {
+  collectionName: 'usage_records';
+  info: {
+    singularName: 'usage-record';
+    pluralName: 'usage-records';
+    displayName: 'Usage Record';
+    description: '';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    strapiUserId: Attribute.Integer & Attribute.Required;
+    entitlement: Attribute.Relation<
+      'api::usage-record.usage-record',
+      'manyToOne',
+      'api::entitlement.entitlement'
+    >;
+    periodStart: Attribute.DateTime & Attribute.Required;
+    periodEnd: Attribute.DateTime & Attribute.Required;
+    usedAmount: Attribute.Integer & Attribute.Required & Attribute.DefaultTo<0>;
+    createdAt: Attribute.DateTime;
+    updatedAt: Attribute.DateTime;
+    createdBy: Attribute.Relation<
+      'api::usage-record.usage-record',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    updatedBy: Attribute.Relation<
+      'api::usage-record.usage-record',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+  };
+}
+
+export interface ApiUsageRuleUsageRule extends Schema.CollectionType {
+  collectionName: 'usage_rules';
+  info: {
+    singularName: 'usage-rule';
+    pluralName: 'usage-rules';
+    displayName: 'Usage Rule';
+    description: '';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    eventName: Attribute.String & Attribute.Required;
+    entitlement: Attribute.Relation<
+      'api::usage-rule.usage-rule',
+      'manyToOne',
+      'api::entitlement.entitlement'
+    >;
+    amount: Attribute.Integer & Attribute.Required & Attribute.DefaultTo<1>;
+    enabled: Attribute.Boolean & Attribute.Required & Attribute.DefaultTo<true>;
+    filterJson: Attribute.JSON;
+    createdAt: Attribute.DateTime;
+    updatedAt: Attribute.DateTime;
+    createdBy: Attribute.Relation<
+      'api::usage-rule.usage-rule',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+    updatedBy: Attribute.Relation<
+      'api::usage-rule.usage-rule',
+      'oneToOne',
+      'admin::user'
+    > &
+      Attribute.Private;
+  };
+}
+
 export interface ApiUsageledgerUsageledger extends Schema.CollectionType {
   collectionName: 'usageledgers';
   info: {
     singularName: 'usageledger';
     pluralName: 'usageledgers';
-    displayName: 'usageledger';
+    displayName: 'usage ledger';
+    description: '';
   };
   options: {
     draftAndPublish: false;
@@ -1204,10 +1378,14 @@ declare module '@strapi/types' {
       'api::audit-log.audit-log': ApiAuditLogAuditLog;
       'api::entitlement.entitlement': ApiEntitlementEntitlement;
       'api::feature.feature': ApiFeatureFeature;
+      'api::feature-i18n.feature-i18n': ApiFeatureI18NFeatureI18N;
       'api::ping.ping': ApiPingPing;
       'api::plan.plan': ApiPlanPlan;
       'api::plan-ent-link.plan-ent-link': ApiPlanEntLinkPlanEntLink;
       'api::subscription.subscription': ApiSubscriptionSubscription;
+      'api::usage-event.usage-event': ApiUsageEventUsageEvent;
+      'api::usage-record.usage-record': ApiUsageRecordUsageRecord;
+      'api::usage-rule.usage-rule': ApiUsageRuleUsageRule;
       'api::usageledger.usageledger': ApiUsageledgerUsageledger;
     }
   }

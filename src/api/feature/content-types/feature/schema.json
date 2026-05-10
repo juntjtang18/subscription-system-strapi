@@ -39,6 +39,12 @@
       },
       "type": "integer",
       "required": true
+    },
+    "feature_i18ns": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::feature-i18n.feature-i18n",
+      "mappedBy": "feature"
     }
   }
 }
