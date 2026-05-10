@@ -1,13 +1,10 @@
 'use strict';
 
 const { createCoreController } = require('@strapi/strapi').factories;
-const { verifyInternalHmac } = require('../../../utils/hmac-auth');
 const logger = require('../../../utils/logger');
 
 module.exports = createCoreController('api::usage-record.usage-record', ({ strapi }) => ({
   async ingestEvent(ctx) {
-    verifyInternalHmac(ctx);
-
     const { eventId, event_id, eventName, event_name, userId, user_id, username, payload } = ctx.request.body || {};
     const result = await strapi.service('api::usage-record.usage-record').processEvent({
       eventId: eventId || event_id,
@@ -21,8 +18,6 @@ module.exports = createCoreController('api::usage-record.usage-record', ({ strap
   },
 
   async getUsage(ctx) {
-    verifyInternalHmac(ctx);
-
     const userId = ctx.query.userId || ctx.query.user_id;
     if (!userId) return ctx.badRequest('userId is required.');
 
@@ -36,8 +31,6 @@ module.exports = createCoreController('api::usage-record.usage-record', ({ strap
   },
 
   async getUsageByMetric(ctx) {
-    verifyInternalHmac(ctx);
-
     const userId = ctx.query.userId || ctx.query.user_id;
     const { metric } = ctx.params;
     if (!userId) return ctx.badRequest('userId is required.');
