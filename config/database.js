@@ -55,6 +55,9 @@ module.exports = ({ env }) => {
         database: env('DATABASE_NAME', 'strapi'),
         user: env('DATABASE_USERNAME', 'strapi'),
         password: env('DATABASE_PASSWORD', 'strapi'),
+        // Cloud SQL can drop long-idle sockets; keepalive reduces stale pooled connections.
+        keepAlive: env.bool('DATABASE_KEEPALIVE', true),
+        keepAliveInitialDelayMillis: env.int('DATABASE_KEEPALIVE_INITIAL_DELAY_MS', 10000),
         ssl: env.bool('DATABASE_SSL', false) && {
           key: env('DATABASE_SSL_KEY', undefined),
           cert: env('DATABASE_SSL_CERT', undefined),
@@ -68,7 +71,13 @@ module.exports = ({ env }) => {
         },
         schema: env('DATABASE_SCHEMA', 'public'),
       },
-      pool: { min: env.int('DATABASE_POOL_MIN', 2), max: env.int('DATABASE_POOL_MAX', 10) },
+      // Let idle connections drain instead of pinning stale Cloud SQL sockets in the pool.
+      pool: {
+        min: env.int('DATABASE_POOL_MIN', 0),
+        max: env.int('DATABASE_POOL_MAX', 10),
+        idleTimeoutMillis: env.int('DATABASE_IDLE_TIMEOUT_MS', 30000),
+        reapIntervalMillis: env.int('DATABASE_REAP_INTERVAL_MS', 1000),
+      },
     },
     sqlite: {
       connection: {
