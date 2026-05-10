@@ -14,7 +14,7 @@
       "name": "Apache 2.0",
       "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
     },
-    "x-generation-date": "2026-05-10T06:38:40.249Z"
+    "x-generation-date": "2026-05-10T07:41:20.555Z"
   },
   "x-strapi-config": {
     "auth": false,
@@ -12563,7 +12563,7 @@
           "data": {
             "required": [
               "eventId",
-              "eventName",
+              "event_name",
               "strapiUserId",
               "status"
             ],
@@ -12572,7 +12572,7 @@
               "eventId": {
                 "type": "string"
               },
-              "eventName": {
+              "event_name": {
                 "type": "string"
               },
               "strapiUserId": {
@@ -12591,10 +12591,10 @@
                   "failed"
                 ]
               },
-              "error": {
+              "handle_result": {
                 "type": "string"
               },
-              "processedAt": {
+              "handled_at": {
                 "type": "string",
                 "format": "date-time"
               }
@@ -12652,7 +12652,7 @@
         "type": "object",
         "required": [
           "eventId",
-          "eventName",
+          "event_name",
           "strapiUserId",
           "status"
         ],
@@ -12660,7 +12660,7 @@
           "eventId": {
             "type": "string"
           },
-          "eventName": {
+          "event_name": {
             "type": "string"
           },
           "strapiUserId": {
@@ -12679,10 +12679,10 @@
               "failed"
             ]
           },
-          "error": {
+          "handle_result": {
             "type": "string"
           },
-          "processedAt": {
+          "handled_at": {
             "type": "string",
             "format": "date-time"
           },

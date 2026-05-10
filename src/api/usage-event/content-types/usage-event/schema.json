@@ -17,7 +17,7 @@
       "required": true,
       "unique": true
     },
-    "eventName": {
+    "event_name": {
       "type": "string",
       "required": true
     },
@@ -42,10 +42,10 @@
       "default": "received",
       "required": true
     },
-    "error": {
+    "handle_result": {
       "type": "text"
     },
-    "processedAt": {
+    "handled_at": {
       "type": "datetime"
     }
   }

@@ -1216,7 +1216,7 @@ export interface ApiUsageEventUsageEvent extends Schema.CollectionType {
   };
   attributes: {
     eventId: Attribute.String & Attribute.Required & Attribute.Unique;
-    eventName: Attribute.String & Attribute.Required;
+    event_name: Attribute.String & Attribute.Required;
     strapiUserId: Attribute.Integer & Attribute.Required;
     username: Attribute.String;
     payload: Attribute.JSON;
@@ -1225,8 +1225,8 @@ export interface ApiUsageEventUsageEvent extends Schema.CollectionType {
     > &
       Attribute.Required &
       Attribute.DefaultTo<'received'>;
-    error: Attribute.Text;
-    processedAt: Attribute.DateTime;
+    handle_result: Attribute.Text;
+    handled_at: Attribute.DateTime;
     createdAt: Attribute.DateTime;
     updatedAt: Attribute.DateTime;
     createdBy: Attribute.Relation<

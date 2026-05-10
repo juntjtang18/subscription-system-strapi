@@ -2,6 +2,7 @@
 
 const { createCoreService } = require('@strapi/strapi').factories;
 const { ApplicationError, NotFoundError } = require('@strapi/utils').errors;
+const usageRuleCache = require('../../../utils/usage-rule-cache');
 
 function startOfUtcDay(date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -75,6 +76,32 @@ function matchesFilter(payload, filterJson) {
 module.exports = createCoreService('api::usage-record.usage-record', ({ strapi }) => ({
   calculatePeriod,
 
+  normalizeEventInput({ eventId, eventName, userId, username, payload, occurredAt }) {
+    const normalizedUserId = Number(userId);
+
+    if (!eventId || !eventName || !userId) {
+      throw new ApplicationError('eventId, eventName, and userId are required.');
+    }
+
+    if (!Number.isFinite(normalizedUserId)) {
+      throw new ApplicationError('userId must be numeric.');
+    }
+
+    const normalizedOccurredAt = occurredAt ? new Date(occurredAt) : new Date();
+    if (Number.isNaN(normalizedOccurredAt.getTime())) {
+      throw new ApplicationError('occurredAt must be a valid date.');
+    }
+
+    return {
+      eventId: String(eventId),
+      eventName: String(eventName),
+      userId: normalizedUserId,
+      username: username || null,
+      payload: payload || {},
+      occurredAt: normalizedOccurredAt,
+    };
+  },
+
   async getActiveSubscription(userId) {
     const [subscription] = await strapi.entityService.findMany('api::subscription.subscription', {
       filters: { strapiUserId: Number(userId), status: 'active' },
@@ -146,10 +173,22 @@ module.exports = createCoreService('api::usage-record.usage-record', ({ strapi }
     });
   },
 
-  async processEvent({ eventId, eventName, userId, username, payload }) {
-    if (!eventId || !eventName || !userId) {
-      throw new ApplicationError('eventId, eventName, and userId are required.');
+  async getRulesForEvent(eventName) {
+    const cachedRules = usageRuleCache.getRulesForEvent(eventName);
+    if (cachedRules !== null) {
+      return cachedRules;
     }
+
+    const rules = await strapi.entityService.findMany('api::usage-rule.usage-rule', {
+      filters: { eventName, enabled: true },
+      populate: { entitlement: true },
+    });
+
+    return rules.filter((rule) => rule.entitlement);
+  },
+
+  async processEvent(input) {
+    const { eventId, eventName, userId, username, payload, occurredAt } = this.normalizeEventInput(input);
 
     const existingEvents = await strapi.entityService.findMany('api::usage-event.usage-event', {
       filters: { eventId },
@@ -162,7 +201,7 @@ module.exports = createCoreService('api::usage-record.usage-record', ({ strapi }
     const usageEvent = await strapi.entityService.create('api::usage-event.usage-event', {
       data: {
         eventId,
-        eventName,
+        event_name: eventName,
         strapiUserId: Number(userId),
         username,
         payload,
@@ -171,15 +210,15 @@ module.exports = createCoreService('api::usage-record.usage-record', ({ strapi }
     });
 
     try {
-      const rules = await strapi.entityService.findMany('api::usage-rule.usage-rule', {
-        filters: { eventName, enabled: true },
-        populate: { entitlement: true },
-      });
-
+      const rules = input.rules || await this.getRulesForEvent(eventName);
       const matchedRules = rules.filter((rule) => rule.entitlement && matchesFilter(payload, rule.filterJson));
       if (matchedRules.length === 0) {
         await strapi.entityService.update('api::usage-event.usage-event', usageEvent.id, {
-          data: { status: 'skipped', processedAt: new Date().toISOString() },
+          data: {
+            status: 'skipped',
+            handle_result: 'No matching usage rules.',
+            handled_at: new Date().toISOString(),
+          },
         });
         return { duplicate: false, processed: 0 };
       }
@@ -191,24 +230,53 @@ module.exports = createCoreService('api::usage-record.usage-record', ({ strapi }
           data: {
             strapiUserId: Number(userId),
             entitlement: entitlement.id,
-            consumedAt: new Date().toISOString(),
+            consumedAt: occurredAt.toISOString(),
             amount: Number(rule.amount || 1),
           },
         });
-        records.push(await this.incrementUsage({ userId, entitlement, amount: rule.amount || 1 }));
+        records.push(await this.incrementUsage({ userId, entitlement, amount: rule.amount || 1, consumedAt: occurredAt }));
       }
 
       await strapi.entityService.update('api::usage-event.usage-event', usageEvent.id, {
-        data: { status: 'processed', processedAt: new Date().toISOString() },
+        data: {
+          status: 'processed',
+          handle_result: `Matched ${matchedRules.length} rule(s).`,
+          handled_at: new Date().toISOString(),
+        },
       });
 
       return { duplicate: false, processed: records.length, records };
     } catch (error) {
       await strapi.entityService.update('api::usage-event.usage-event', usageEvent.id, {
-        data: { status: 'failed', error: error.message, processedAt: new Date().toISOString() },
+        data: {
+          status: 'failed',
+          handle_result: error.message,
+          handled_at: new Date().toISOString(),
+        },
       });
       throw error;
     }
+  },
+
+  async processEventFromBus({ topic, payload, publishedAt }) {
+    const eventPayload = payload || {};
+
+    return await this.processEvent({
+      eventId: eventPayload.eventId || eventPayload.event_id,
+      eventName: eventPayload.eventName || eventPayload.event_name || topic,
+      userId: eventPayload.userId || eventPayload.user_id,
+      username: eventPayload.username,
+      payload: {
+        ...eventPayload,
+        _meta: {
+          ...(eventPayload._meta || {}),
+          source: 'event-bus',
+          topic,
+          publishedAt: publishedAt || null,
+        },
+      },
+      occurredAt: publishedAt || new Date().toISOString(),
+    });
   },
 
   async getUsageForUser(userId, metricSlug) {

@@ -1,5 +1,11 @@
 'use strict';
 
+const logger = require('./utils/logger');
+const {
+  initUsageEventBus,
+  shutdownUsageEventBus,
+} = require('./utils/usage-event-bus');
+
 module.exports = {
   /**
    * An asynchronous register function that runs before
@@ -12,9 +18,15 @@ module.exports = {
    * your application gets started. This is the correct place
    * to register cron jobs.
    */
-  bootstrap({ strapi }) {
+  async bootstrap({ strapi }) {
     // Moved the require statement here to ensure Strapi is fully loaded first.
     const { doubleCheckAppleReceipts } = require('./utils/cron-jobs');
+
+    try {
+      await initUsageEventBus(strapi);
+    } catch (error) {
+      logger.error(`[bootstrap] Failed to initialize usage event bus: ${error.message}`);
+    }
 
     // Add the cron job to the Strapi schedule
     /**
@@ -32,5 +44,9 @@ module.exports = {
 
     console.log('📅 Apple receipt verification job registered successfully.');
     */
+  },
+
+  async destroy() {
+    await shutdownUsageEventBus();
   },
 };
