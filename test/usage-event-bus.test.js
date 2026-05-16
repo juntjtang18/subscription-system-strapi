@@ -42,14 +42,14 @@ async function createPlanFixture(strapi, prefix) {
   });
 }
 
-async function createEntitlementFixture(strapi, prefix, name, defaultlimit) {
+async function createEntitlementFixture(strapi, prefix, name, defaultlimit, resetPeriod = 'month') {
   return await strapi.entityService.create('api::entitlement.entitlement', {
     data: {
       name: `${prefix}-${name}`,
       slug: `${prefix}-${name}`.toLowerCase(),
       ismetered: true,
       defaultlimit,
-      resetPeriod: 'month',
+      resetPeriod,
     },
   });
 }
@@ -170,7 +170,7 @@ async function run() {
     const plan = await createPlanFixture(strapi, prefix);
     const aiRequests = await createEntitlementFixture(strapi, prefix, 'ai-requests', 100);
     const ttsRequests = await createEntitlementFixture(strapi, prefix, 'tts-requests', 100);
-    const exportJobs = await createEntitlementFixture(strapi, prefix, 'export-jobs', 100);
+    const exportJobs = await createEntitlementFixture(strapi, prefix, 'export-jobs', 100, null);
 
     await linkPlanEntitlement(strapi, plan.id, aiRequests.id, 100);
     await linkPlanEntitlement(strapi, plan.id, ttsRequests.id, 100);
@@ -226,6 +226,8 @@ async function run() {
           const exportUsage = await usageService.getUsageForUser(userId, exportJobs.slug);
           assert.equal(aiUsage.used, 4);
           assert.equal(exportUsage.used, 1);
+          assert.equal(exportUsage.resetPeriod, 'lifetime');
+          assert.equal(exportUsage.periodStart, '1970-01-01T00:00:00.000Z');
         },
       },
     ];

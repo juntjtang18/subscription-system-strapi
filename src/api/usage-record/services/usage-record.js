@@ -132,13 +132,19 @@ module.exports = createCoreService('api::usage-record.usage-record', ({ strapi }
 
     (plan.plan_ent_links || []).forEach((link) => {
       if (!link.entitlement) return;
+      const resetPeriod = link.entitlement.resetPeriod || 'lifetime';
+      if (!link.entitlement.resetPeriod && link.entitlement.ismetered) {
+        strapi.log.warn(
+          `[usage-record] Entitlement "${link.entitlement.slug}" has no resetPeriod configured; defaulting to "lifetime".`
+        );
+      }
       entitlements.set(link.entitlement.slug, {
         id: link.entitlement.id,
         name: link.entitlement.name,
         slug: link.entitlement.slug,
         isMetered: link.entitlement.ismetered,
         limit: link.limitOverride !== null && link.limitOverride !== undefined ? link.limitOverride : link.entitlement.defaultlimit,
-        resetPeriod: link.entitlement.resetPeriod,
+        resetPeriod,
       });
     });
 
